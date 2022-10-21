@@ -451,6 +451,21 @@ namespace MiniMC {
             }
           }
         }
+	MiniMC::Support::Messager mess;
+	for (auto& F : prgm.getEntryPoints ()) {
+	  if (F->getParameters ().size ()) {
+	    res = false;
+	    mess.message<MiniMC::Support::Severity::Error>(MiniMC::Support::Localiser {"Entry Point '%1%' should not take parameters "}.format (F->getSymbol ().getName()));
+	  }
+	  if (F->getReturnType ()->getTypeID () != MiniMC::Model::TypeID::Void ) {
+	    res = false;
+	    mess.message<MiniMC::Support::Severity::Error>(MiniMC::Support::Localiser {"Entry Point '%1%' return Void "}.format (F->getSymbol ().getName()));
+	    
+	  }
+
+	  
+	}
+	
         return res;
       }
     } // namespace Checkers
