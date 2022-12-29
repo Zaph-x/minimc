@@ -4,7 +4,7 @@ FetchContent_Declare(
     leg
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/leg
     GIT_REPOSITORY https://github.com/Zaph-x/leg-assembly-loader.git
-    GIT_TAG main
+    GIT_TAG doctest-fun
 )
 
 FetchContent_MakeAvailable (leg)
