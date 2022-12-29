@@ -20,6 +20,7 @@ include (dependencies/doctest.cmake)
 include (dependencies/smtlib.cmake)
 include (dependencies/llvm.cmake)
 include (dependencies/xxhash.cmake)
+include (dependencies/leg.cmake)
 
 
 SET (ToolName minimc)
