@@ -1,4 +1,4 @@
-add_library (loader SHARED loader.cpp)
+add_library (loader SHARED loader.cpp arm/leg-assembly-loader/src/Loader.cpp arm/leg-assembly-loader/src/parser.cpp arm/leg-assembly-loader/src/lexer.cpp)
 add_subdirectory (llvm)
 add_subdirectory (mmc)
 
