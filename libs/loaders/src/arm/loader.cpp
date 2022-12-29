@@ -1,4 +1,4 @@
-#include "leg"
+
 #include "loaders/loader.hpp"
 #include "model/cfg.hpp"
 
@@ -44,9 +44,9 @@ namespace MiniMC {
       }
     };
 
-    class MMCLoadRegistrar : public LoaderRegistrar {
+    class ARMLoadRegistrar : public LoaderRegistrar {
     public:
-      MMCLoadRegistrar()
+      ARMLoadRegistrar()
           : LoaderRegistrar("MMC", {IntOption{.name = "stack",
                                               .description = "StackSize",
                                               .value = 200}}) {}
@@ -63,11 +63,11 @@ namespace MiniMC {
               }
             },
             getOptions().at(0));
-        return std::make_unique<MMCLoader>(tfac, cfac);
+        return std::make_unique<ARMLoader>(tfac, cfac);
       }
     };
 
-    static MMCLoadRegistrar MMCloadregistrar;
+    static ARMLoadRegistrar ARMloadregistrar;
 
   } // namespace Loaders
 } // namespace MiniMC
