@@ -194,3 +194,5 @@ libs/support/config.h
 *.cbp
 
 .pre-commit-config.yaml
+
+/leg-assembly-loader/

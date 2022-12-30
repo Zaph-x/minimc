@@ -1,53 +1,60 @@
-
 #include "loaders/loader.hpp"
+#include "../../../leg-assembly-loader/include/parser.hpp"
 #include "model/cfg.hpp"
-
 #include <fstream>
 #include <sstream>
-
 
 namespace MiniMC {
   namespace Loaders {
 
-    MiniMC::Model::Function_ptr createEntryPoint(MiniMC::Model::Program& program, MiniMC::Model::Function_ptr function, std::vector<MiniMC::Model::Value_ptr>&&) {
+    //Renamed for multiple definitions reasons.
+    MiniMC::Model::Function_ptr createARMEntryPoint(std::size_t stacksize,
+                                                    MiniMC::Model::Program& program,
+                                                    MiniMC::Model::Function_ptr function,
+                                                    std::vector<MiniMC::Model::Value_ptr>&&) {
       throw MiniMC::Support::ConfigurationException ("Loader does not support defining entry points");
     }
 
 
     class ARMLoader : public Loader {
     public:
-      ARMLoader(Model::TypeFactory_ptr &tfac, Model::ConstantFactory_ptr &cfac)
-          : Loader(tfac, cfac) {}
+      ARMLoader(std::size_t stacksize, Model::TypeFactory_ptr &tfac, Model::ConstantFactory_ptr &cfac)
+          : Loader(tfac, cfac),stacksize(stacksize) {}
 
       LoadResult loadFromFile(const std::string &file) override {
         auto program =std::make_shared<MiniMC::Model::Program>(tfactory, cfactory);
         std::fstream str;
         str.open(file);
-        Parser parser = Parser(str, *tfactory, *cfactory, program);
-        parser.run();
-        ARM::Parser armParser = ARM::Parser(str, *tfactory, *cfactory, program);
-
+        ARM::Parser::Parser armParser = ARM::Parser::Parser();
+        armParser.set_up(file);
 
         return {.program = program,
-                .entrycreator = createEntryPoint
+                .entrycreator = std::bind(createARMEntryPoint,stacksize,std::placeholders::_1, std::placeholders::_2,std::placeholders::_3)
         };
       }
       LoadResult loadFromString(const std::string &inp) override {
         auto program = std::make_shared<MiniMC::Model::Program>(tfactory, cfactory);
         std::stringstream str;
         str.str(inp);
-        Parser parser = Parser(str, *tfactory, *cfactory, program);
-        parser.run();
+        ARM::Parser::Parser parser = ARM::Parser::Parser();
+        ARM::Lexer::Lexer lexer = ARM::Lexer::Lexer(str);
+        parser.set_up(lexer);
         return {.program = program,
-                .entrycreator = createEntryPoint
+                .entrycreator = std::bind(createARMEntryPoint,stacksize,std::placeholders::_1, std::placeholders::_2,std::placeholders::_3)
         };
       }
+
+    private:
+      std::size_t stacksize;
+
     };
 
+
+    //Taken more or less directly from the llvm loader. Since their roles are similar.
     class ARMLoadRegistrar : public LoaderRegistrar {
     public:
       ARMLoadRegistrar()
-          : LoaderRegistrar("MMC", {IntOption{.name = "stack",
+          : LoaderRegistrar("ARM", {IntOption{.name = "stack",
                                               .description = "StackSize",
                                               .value = 200}}) {}
 
@@ -63,7 +70,7 @@ namespace MiniMC {
               }
             },
             getOptions().at(0));
-        return std::make_unique<ARMLoader>(tfac, cfac);
+        return std::make_unique<ARMLoader>(stacksize,tfac, cfac);
       }
     };
 

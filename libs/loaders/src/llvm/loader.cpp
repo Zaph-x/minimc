@@ -273,7 +273,10 @@ namespace MiniMC {
       const GLoadContext& context;
     };
 
-    MiniMC::Model::Function_ptr createEntryPoint(std::size_t stacksize, MiniMC::Model::Program& program, MiniMC::Model::Function_ptr function, std::vector<MiniMC::Model::Value_ptr>&&) {
+    MiniMC::Model::Function_ptr createEntryPoint(std::size_t stacksize,
+                                                 MiniMC::Model::Program& program,
+                                                 MiniMC::Model::Function_ptr function,
+                                                 std::vector<MiniMC::Model::Value_ptr>&&) {
       auto source_loc = std::make_shared<MiniMC::Model::SourceInfo>();
       
       static std::size_t nb = 0;
