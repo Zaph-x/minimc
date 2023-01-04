@@ -9,6 +9,11 @@
 namespace MiniMC {
   namespace Loaders {
 
+    // Definition stub might not be the correct approach, but does contain sizes of types.
+    MiniMC::Model::TypeID getTypeID(ARM::Parser::DefinitionStub type);
+
+
+
     class ARMLoader : public Loader {
     public:
       ARMLoader(Model::TypeFactory_ptr &tfac, Model::ConstantFactory_ptr &cfac)
@@ -18,6 +23,8 @@ namespace MiniMC {
         auto program =std::make_shared<MiniMC::Model::Program>(tfactory, cfactory);
         ARM::Parser::Parser parser = ARM::Parser::Parser();
         parser.set_up(file);
+        parser.assign_program();
+
 
 
 
@@ -63,7 +70,7 @@ namespace MiniMC {
       Loader_ptr makeLoader(MiniMC::Model::TypeFactory_ptr &tfac,
                             Model::ConstantFactory_ptr cfac) override {
 
-        auto stacksize
+        auto stacksize = 2;
 
 
 
