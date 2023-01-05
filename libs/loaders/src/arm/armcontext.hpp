@@ -5,6 +5,7 @@
 #include <utility>
 #include "parser.hpp"
 
+
 namespace MiniMC {
   namespace Loaders {
     struct GLoadContext {
@@ -13,22 +14,22 @@ namespace MiniMC {
       GLoadContext (MiniMC::Model::ConstantFactory& cfact,
                    MiniMC::Model::TypeFactory& tfact,
                    const std::shared_ptr<ARM::Parser::Program>& prgm,
-                   std::unordered_map<std::shared_ptr<ARM::Parser::Variable> ,MiniMC::Model::Value_ptr> values) : values(std::move(values)), cfact(cfact), tfact(tfact), prgm(prgm) {}
+                   std::unordered_map<const std::shared_ptr<ARM::Parser::Variable>, Model::Value_ptr>& values) : values(values), cfact(cfact), tfact(tfact), prgm(prgm) {}
                     //ARM::Parser::Variable replaced llvm:Value
-      GLoadContext(const GLoadContext& g) : values(g.values),cfact(g.cfact),tfact(g.tfact) {
+      GLoadContext(const GLoadContext& g) : values(g.values),cfact(g.cfact),tfact(g.tfact),prgm(g.prgm) {
 
       }
 
       virtual ~GLoadContext () {}
       MiniMC::Model::Value_ptr findValue (const ARM::Parser::DefinitionStub &val);
-      void addValue (const std::shared_ptr<ARM::Parser::Variable> val, MiniMC::Model::Value_ptr vals) {values.emplace (val,vals);}
+      void addValue (const std::shared_ptr<ARM::Parser::Variable>& val, MiniMC::Model::Value_ptr& vals) {values.emplace (val,vals);}
       bool hasValue (const std::shared_ptr<ARM::Parser::Variable> v) {return values.count (v);}
       //MiniMC::BV32 computeSizeInBytes (llvm::Type* );
       auto& getConstantFactory () const {return cfact;}
       auto& getTypeFactory () const {return tfact;}
       MiniMC::Model::Type_ptr getType(const ARM::Parser::DefinitionStub &type);
     private:
-      std::unordered_map<std::shared_ptr<ARM::Parser::Variable>,MiniMC::Model::Value_ptr> values;
+      std::unordered_map<const std::shared_ptr<ARM::Parser::Variable>,MiniMC::Model::Value_ptr> values;
       MiniMC::Model::ConstantFactory& cfact;
       MiniMC::Model::TypeFactory& tfact;
       std::shared_ptr<ARM::Parser::Program> prgm;
@@ -42,7 +43,7 @@ namespace MiniMC {
                   std::unordered_map<const ARM::Parser::Variable,MiniMC::Model::Value_ptr> values,
                   MiniMC::Model::RegisterDescr& descr,
                   const MiniMC::Model::Value_ptr& sp
-                  ) : GLoadContext(cfact,tfact,prgm,std::move(values)),stack(descr),sp(sp) {}
+                  ) : GLoadContext(cfact,tfact,prgm,values),stack(descr),sp(sp) {}
       LoadContext (const LoadContext& ) = delete;
       LoadContext ( const GLoadContext& c,
                   MiniMC::Model::RegisterDescr& descr,
