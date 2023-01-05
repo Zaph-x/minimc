@@ -14,7 +14,7 @@ namespace MiniMC {
       GLoadContext (MiniMC::Model::ConstantFactory& cfact,
                    MiniMC::Model::TypeFactory& tfact,
                    const std::shared_ptr<ARM::Parser::Program>& prgm,
-                   std::unordered_map<const std::shared_ptr<ARM::Parser::Variable>, Model::Value_ptr>& values) : values(values), cfact(cfact), tfact(tfact), prgm(prgm) {}
+                   std::unordered_map<std::shared_ptr<ARM::Parser::Variable>, Model::Value_ptr>& values) : values(std::move(values)), cfact(cfact), tfact(tfact), prgm(prgm) {}
                     //ARM::Parser::Variable replaced llvm:Value
       GLoadContext(const GLoadContext& g) : values(g.values),cfact(g.cfact),tfact(g.tfact),prgm(g.prgm) {
 
@@ -28,8 +28,10 @@ namespace MiniMC {
       auto& getConstantFactory () const {return cfact;}
       auto& getTypeFactory () const {return tfact;}
       MiniMC::Model::Type_ptr getType(const ARM::Parser::DefinitionStub &type);
+      template<class T>
+      bool isa(const std::shared_ptr<ARM::Parser::Node>& inst); 
     private:
-      std::unordered_map<const std::shared_ptr<ARM::Parser::Variable>,MiniMC::Model::Value_ptr> values;
+      std::unordered_map<std::shared_ptr<ARM::Parser::Variable>,MiniMC::Model::Value_ptr> values;
       MiniMC::Model::ConstantFactory& cfact;
       MiniMC::Model::TypeFactory& tfact;
       std::shared_ptr<ARM::Parser::Program> prgm;
@@ -40,7 +42,7 @@ namespace MiniMC {
       LoadContext (  MiniMC::Model::ConstantFactory& cfact,
                   MiniMC::Model::TypeFactory& tfact,
                   std::shared_ptr<ARM::Parser::Program>& prgm,
-                  std::unordered_map<const ARM::Parser::Variable,MiniMC::Model::Value_ptr> values,
+                  std::unordered_map<std::shared_ptr<ARM::Parser::Variable>,MiniMC::Model::Value_ptr> values,
                   MiniMC::Model::RegisterDescr& descr,
                   const MiniMC::Model::Value_ptr& sp
                   ) : GLoadContext(cfact,tfact,prgm,values),stack(descr),sp(sp) {}
@@ -61,18 +63,22 @@ namespace MiniMC {
     struct InstructionTranslator {
       InstructionTranslator (LoadContext& context) : context(context) {}
       template<class Gatherer>
-      void operator() (llvm::Instruction*, Gatherer&& gather);
+      void operator() (std::shared_ptr<ARM::Parser::Instruction>, Gatherer&& gather);
     private:
 
       template<MiniMC::Model::InstructionCode code,class Gatherer>
-      void createInstruction (llvm::Instruction* inst, Gatherer&& gather);
+      void createInstruction (std::shared_ptr<ARM::Parser::Instruction> inst, Gatherer&& gather);
 
       LoadContext& context;
     };
 
+    template<class T>
+    bool GLoadContext::isa(const std::shared_ptr<ARM::Parser::Node>& inst) {
+      return std::dynamic_pointer_cast<T>(inst) != nullptr;
+    }
 
     template<MiniMC::Model::InstructionCode code,class Gatherer>
-    void InstructionTranslator::createInstruction (llvm::Instruction* inst, Gatherer&& gather)
+    void InstructionTranslator::createInstruction (std::shared_ptr<ARM::Parser::Instruction> inst, Gatherer&& gather)
     {
       auto calcSkip = [this](auto & ty, auto index) {
         if (ty->isArrayTy()) {

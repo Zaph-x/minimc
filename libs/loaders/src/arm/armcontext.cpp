@@ -105,7 +105,7 @@ namespace MiniMC {
 //    }
 
 
-    MiniMC::Model::Value_ptr GLoadContext::findValue(const ARM::Parser::DefinitionStub &val) {
+    MiniMC::Model::Value_ptr GLoadContext::findValue(const std::shared_ptr<ARM::Parser::DefinitionStub> &val) {
       auto type = getTypeID(val);
       if (val) {
         auto ltype = constant->getType();
@@ -151,8 +151,8 @@ namespace MiniMC {
           }
           // assert(false && "FAil");
 
-        } else if (llvm::isa<llvm::Function>(val) ||
-                   llvm::isa<llvm::GlobalVariable>(val)) {
+        } else if (GLoadContext::isa<ARM::Parser::Function>(val) ||
+                   GLoadContext::isa<ARM::Parser::Variable>(val)) {
           return values.at(val);
         } else if (const llvm::BlockAddress* block = llvm::dyn_cast<const llvm::BlockAddress>(val)) {
           return values.at(block->getBasicBlock());
