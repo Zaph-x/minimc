@@ -21,7 +21,7 @@ namespace MiniMC {
       }
 
       virtual ~GLoadContext () {}
-      MiniMC::Model::Value_ptr findValue (const ARM::Parser::DefinitionStub &val);
+      MiniMC::Model::Value_ptr findValue (const std::shared_ptr<ARM::Parser::DefinitionStub> &val);
       void addValue (const std::shared_ptr<ARM::Parser::Variable>& val, MiniMC::Model::Value_ptr& vals) {values.emplace (val,vals);}
       bool hasValue (const std::shared_ptr<ARM::Parser::Variable> v) {return values.count (v);}
       //MiniMC::BV32 computeSizeInBytes (llvm::Type* );
@@ -80,22 +80,6 @@ namespace MiniMC {
     template<MiniMC::Model::InstructionCode code,class Gatherer>
     void InstructionTranslator::createInstruction (std::shared_ptr<ARM::Parser::Instruction> inst, Gatherer&& gather)
     {
-      auto calcSkip = [this](auto & ty, auto index) {
-        if (ty->isArrayTy()) {
-          return context.computeSizeInBytes(static_cast<llvm::ArrayType*>(ty)->getElementType()) * index;
-        }
-
-        else if (ty->isStructTy()) {
-          MiniMC::BV32 size = 0;
-          auto strucTy = static_cast<llvm::StructType*>(ty);
-          for (size_t i = 0; i < index; ++i) {
-            size += context.computeSizeInBytes(strucTy->getElementType(i));
-          }
-          return size;
-        } else {
-          throw MiniMC::Support::Exception("Can't calculate size");
-        }
-      };
 
       if constexpr (MiniMC::Model::InstructionData<code>::isTAC ||
                     MiniMC::Model::InstructionData<code>::isComparison) {
