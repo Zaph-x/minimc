@@ -54,39 +54,38 @@ namespace MiniMC {
         return program;
       }
 
-      void functions(){
-          auto functions = parser.get_program()->get_functions();
+      void functions() {
+        auto functions = parser.get_program()->get_functions();
 
-          for(unsigned int i = 0; i < functions.size(); i++){
-            std::shared_ptr<ARM::Parser::Function> func = functions[i];
-            const std::string& name = func->get_name();
-            auto params = std::vector<Model::Register_ptr>();
-            auto instructions = func->get_instructions();
-            for (unsigned int j = 0; j < instructions.size(); j++){
-              if (instructions[j]->get_args().empty()){
-                continue;
-              }
-              for (auto in:instructions[j]->get_args()){
-                //Find ud af om arg er register node
+        for (unsigned int i = 0; i < functions.size(); i++) {
+          std::shared_ptr<ARM::Parser::Function> func = functions[i];
+          const std::string& name = func->get_name();
+          auto params = std::vector<Model::Register_ptr>();
+          auto instructions = func->get_instructions();
+          auto regDescr = MiniMC::Model::RegisterDescr(MiniMC::Model::Symbol::from_string(name));
+          for (unsigned int j = 0; j < instructions.size(); j++) {
+            if (instructions[j]->get_args().empty()) {
+              continue;
+            }
+            for (auto in : instructions[j]->get_args()) {
+              // Find ud af om arg er register node
 
-                if (std::dynamic_pointer_cast<ARM::Parser::Register>(in) != nullptr){
-                  auto reg = std::dynamic_pointer_cast<ARM::Parser::Register>(in);
-                  auto res = MiniMC::Model::Register()
-                  params.push_back(reg->get_name(), )
+              if (std::dynamic_pointer_cast<ARM::Parser::Register>(in) != nullptr) {
+                // Register node to minimc register helper in the future?
+                auto reg = std::dynamic_pointer_cast<ARM::Parser::Register>(in);
+                // If getregisters contains register, continue.
+                  auto res = regDescr.addRegister(MiniMC::Model::Symbol::from_string(reg->get_name()), program->getTypeFactory().makeIntegerType(32));
                 }
-                //Model::RegisterDescr::addRegister()
               }
-
             }
 
-
-//                const Type_ptr retType,
-//                RegisterDescr_uptr&& registerdescr,
-//                CFA&& cfg
-//
-//            program->addFunction(name, params, retType, registerdescr, cfg)
+            const Model::Type_ptr retType = program->getTypeFactory().makeVoidType();
+            MiniMC::Model::RegisterDescr_uptr&& registerdescr = std::make_unique<>()regDescr;
+            //                CFA&& cfg
+            //
+            //            program->addFunction(name, params, retType, registerdescr, cfg)
           }
-      }
+        }
 
 
     private:
