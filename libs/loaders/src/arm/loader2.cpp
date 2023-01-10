@@ -42,14 +42,10 @@ namespace MiniMC {
 
         parser = par;
         program = prog;
-        /* Ting der ordnes i Lars Bo's loader
         functions();
-         Lav en Program->addFunction med navn, registre
-        entrypoints();
-        heap();
-        initialiser();
-         */
-        functions();
+        entrypoints(); //TODO: entrypoints
+        heap(); //TODO: heap
+        initialiser(); //TODO: initialiser
 
         return program;
       }
@@ -58,12 +54,14 @@ namespace MiniMC {
         auto functions = parser.get_program()->get_functions();
 
         for (unsigned int i = 0; i < functions.size(); i++) {
+          //Discover registers used.
           std::shared_ptr<ARM::Parser::Function> func = functions[i];
           const std::string& name = func->get_name();
           auto params = std::vector<Model::Register_ptr>();
           auto instructions = func->get_instructions();
           auto regDescr = MiniMC::Model::RegisterDescr(MiniMC::Model::Symbol::from_string(name));
           for (unsigned int j = 0; j < instructions.size(); j++) {
+            //convertInstruction(instructions[j]);
             if (instructions[j]->get_args().empty()) {
               continue;
             }
@@ -74,19 +72,78 @@ namespace MiniMC {
                 // Register node to minimc register helper in the future?
                 auto reg = std::dynamic_pointer_cast<ARM::Parser::Register>(in);
                 // If getregisters contains register, continue.
-                  auto res = regDescr.addRegister(MiniMC::Model::Symbol::from_string(reg->get_name()), program->getTypeFactory().makeIntegerType(32));
+                auto registerList = regDescr.getRegisters();
+
+                if (std::find_if(registerList.begin(), registerList.end(), [&reg](const Model::Register_ptr& r) {
+                  return r->getSymbol().getName() == reg->get_name();
+                }) != registerList.end()) {
+                  continue;
+                }
+
+                // Benyt offset fra CFA_offset og kig på hvor store hop der finder sted når man mover og storer værdier.
+                // Kig f.eks. på linje 52 - 53 i function_parameters.
+                // Der findes der offsets på 4 byte som loades ind i w0 som parameter til funktionerne.
+                // Disse offsets plus det som blev noteret om måden potentielle pointers håndteres på, så kan man bruge dette til at finde register typen.
+                auto res = regDescr.addRegister(MiniMC::Model::Symbol::from_string(reg->get_name()), program->getTypeFactory().makeIntegerType(32));
                 }
               }
             }
 
             const Model::Type_ptr retType = program->getTypeFactory().makeVoidType();
-            MiniMC::Model::RegisterDescr_uptr&& registerdescr = std::make_unique<>()regDescr;
+            //MiniMC::Model::RegisterDescr_uptr&& registerdescr = std::make_unique<MiniMC::Model::RegisterDescr>(regDescr);
             //                CFA&& cfg
             //
             //            program->addFunction(name, params, retType, registerdescr, cfg)
           }
         }
 
+
+          void entrypoints() {
+            // TODO
+          }
+
+          void heap() {
+            // Heaplayout is empty for differentadd.ll
+          }
+
+          void initialiser() {
+          // Empty for differentadd.ll (and presumably, .s)
+          }
+
+          MiniMC::Model::Instruction convertInstruction(std::shared_ptr<ARM::Parser::Instruction> instruction){
+              auto instr_args = instruction->get_args();
+              if (instruction->get_name() == "add"){
+                  auto instr_code = MiniMC::Model::InstructionCode::Add;
+                  if (instr_args.size() != 3){
+                    throw std::runtime_error("Invalid number of arguments for add instruction");
+                  }
+                  auto arg0 = std::dynamic_pointer_cast<ARM::Parser::Register>(instr_args[0]);
+                  auto arg1 = std::dynamic_pointer_cast<ARM::Parser::Register>(instr_args[1]);
+
+                  if (arg0 == nullptr || arg1 == nullptr){
+                    throw std::runtime_error("Invalid arguments for add instruction");
+                  }
+//                  auto res = MiniMC::Model::Value_ptr
+//                  auto res = MiniMC::Model::Register(MiniMC::Model::Symbol::from_string(arg0->get_name()), owner);
+//                  auto op1 = MiniMC::Model::Register(MiniMC::Model::Symbol::from_string(arg1->get_name()), owner);
+//
+//                  MiniMC::Model::TACContent content ={
+//                      .res = res,
+//                            .op1 = op1;
+//                  };
+
+                  // Arg 1 and 2 are registers, check if 3 is as well.
+                  if (std::dynamic_pointer_cast<ARM::Parser::ImmediateValue>(instr_args[2])){
+
+                  }
+                  for(std::shared_ptr<ARM::Parser::Node> operand:instruction->get_args()){
+
+                  }
+              }else{
+
+              }
+
+          }
 
     private:
       ARM::Parser::Parser parser;
