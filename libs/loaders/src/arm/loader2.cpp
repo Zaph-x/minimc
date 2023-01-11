@@ -44,7 +44,7 @@ namespace MiniMC {
         program = prog;
         functions();
         entrypoints(); //TODO: entrypoints
-        heap(); //TODO: heap
+        heap(); // TODO: Finish heap for labels
         initialiser(); //TODO: initialiser
 
         return program;
@@ -56,6 +56,20 @@ namespace MiniMC {
         for (unsigned int i = 0; i < functions.size(); i++) {
           //Discover registers used.
           std::shared_ptr<ARM::Parser::Function> func = functions[i];
+
+          int function_offset = 0;
+          int last_offset = 0;
+          int current_offset = 0;
+          if (func->get_instructions()[2]->get_name() == ".cfi_def_cfa_offset") {
+            auto cast_value = func->get_instructions()[2]->get_args()[0];
+            auto offset = std::dynamic_pointer_cast<ARM::Parser::ImmediateValue>(cast_value);
+            if (offset != nullptr) {
+              function_offset = std::stoi(offset->get_value());
+              last_offset = function_offset;
+            }
+          }
+
+
           const std::string& name = func->get_name();
           auto params = std::vector<Model::Register_ptr>();
           auto instructions = func->get_instructions();
@@ -71,19 +85,18 @@ namespace MiniMC {
               if (std::dynamic_pointer_cast<ARM::Parser::Register>(in) != nullptr) {
                 // Register node to minimc register helper in the future?
                 auto reg = std::dynamic_pointer_cast<ARM::Parser::Register>(in);
-                // If getregisters contains register, continue.
                 auto registerList = regDescr.getRegisters();
 
+                // Check if register is already in register list
                 if (std::find_if(registerList.begin(), registerList.end(), [&reg](const Model::Register_ptr& r) {
                   return r->getSymbol().getName() == reg->get_name();
                 }) != registerList.end()) {
                   continue;
                 }
 
-                // Benyt offset fra CFA_offset og kig på hvor store hop der finder sted når man mover og storer værdier.
-                // Kig f.eks. på linje 52 - 53 i function_parameters.
-                // Der findes der offsets på 4 byte som loades ind i w0 som parameter til funktionerne.
-                // Disse offsets plus det som blev noteret om måden potentielle pointers håndteres på, så kan man bruge dette til at finde register typen.
+
+                //Traversal of instructions to find latest offset
+
                 auto res = regDescr.addRegister(MiniMC::Model::Symbol::from_string(reg->get_name()), program->getTypeFactory().makeIntegerType(32));
                 }
               }
@@ -103,11 +116,31 @@ namespace MiniMC {
           }
 
           void heap() {
-            // Heaplayout is empty for differentadd.ll
+            auto global_vars = parser.get_program()->get_global_variables();
+            for (std::shared_ptr<ARM::Parser::Variable> var: global_vars) {
+                auto size = var->get_size();
+                program->getHeapLayout().addBlock(size);
+
+                //TODO: Take care of the labels
+
+            }
           }
 
           void initialiser() {
-          // Empty for differentadd.ll (and presumably, .s)
+            // Initialiser is an instruction stream with a store instruction for each heap element.
+            // Presumably since it should be run before the entrypoint.
+            std::vector<MiniMC::Model::Instruction> instructions;
+
+            //Handle global variables
+            auto global_vars = parser.get_program()->get_global_variables();
+            for (std::shared_ptr<ARM::Parser::Variable> var: global_vars) {
+                auto size = var->get_size();
+                auto name = var->get_name();
+
+            // Handle functions
+                //TODO: Take care of the labels
+
+            }
           }
 
           MiniMC::Model::Instruction convertInstruction(std::shared_ptr<ARM::Parser::Instruction> instruction){
