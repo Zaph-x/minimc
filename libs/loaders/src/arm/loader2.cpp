@@ -43,6 +43,7 @@ namespace MiniMC {
         parser = par;
         program = prog;
         functions();
+        cfa();
         entrypoints(); //TODO: entrypoints
         heap(); // TODO: Finish heap for labels
         initialiser(); //TODO: initialiser
@@ -110,10 +111,13 @@ namespace MiniMC {
           }
         }
 
+        void cfa() {
 
-          void entrypoints() {
-            // TODO
-          }
+        }
+
+        void entrypoints() {
+          // TODO
+        }
 
           void heap() {
             auto global_vars = parser.get_program()->get_global_variables();
