@@ -1,0 +1,1 @@
+add_library (ctplparser INTERFACE ctplParserTreeConstants.h)

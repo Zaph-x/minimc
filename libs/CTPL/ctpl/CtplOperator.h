@@ -1,7 +1,7 @@
 #ifndef C__TPL_CTPLOPERATOR_H
 #define C__TPL_CTPLOPERATOR_H
 #include "ctplAtom.h"
-#include "../parser/ctplParserTreeConstants.h"
+#include "../ctplparser/ctplParserTreeConstants.h"
 
 class CtplOperator : public CtplAtom {
     const int AF = CtplParserTreeConstants::JJTAF;
