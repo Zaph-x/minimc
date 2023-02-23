@@ -90,6 +90,15 @@ po::options_description smtOptions(SetupOptions& options) {
   return smt;
 }
 
+
+
+po::options_description ctlOptions(std::vector<int>& select) {
+  po::options_description general("ctpl Options");
+  general.add_options()("ctpl", po::value<std::vector<int>>(&select)->multitoken(), "ctpl\n 1: ctpl\n");
+
+  return general;
+}
+
 po::options_description defOptions(SetupOptions& options) {
   auto selCommand = [&options](const std::string& sel) {
     if (isCommand(sel)) {
@@ -152,10 +161,13 @@ bool parseOptions(int argc, char* argv[], SetupOptions& opt) {
 
   std::vector<int> cpasel;
   general.add(cpaOptions(cpasel));
-  addCommandOptions(general);
 
   options.add(defOptions(opt));
   options.add(general);
+
+  std::vector<int> ctplsel;
+  general.add(ctlOptions(ctplsel));
+  addCommandOptions(general);
 
   po::positional_options_description pos;
   pos.add("inputfile", 1).add("command", 1);
