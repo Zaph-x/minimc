@@ -262,6 +262,7 @@ namespace MiniMC {
       using aggr_input = std::vector<Constant_ptr>;
       virtual const Value_ptr makeAggregateConstant(const aggr_input& inp, bool) = 0;
       virtual const Value_ptr makeIntegerConstant(MiniMC::BV64, TypeID) = 0;
+      virtual const Value_ptr makeFloatConstant(MiniMC::BV64, TypeID) = 0;
       virtual const Value_ptr makeFunctionPointer(MiniMC::func_t) = 0;
       virtual const Value_ptr makeHeapPointer(MiniMC::base_t) = 0;
       
@@ -276,6 +277,7 @@ namespace MiniMC {
       ConstantFactory64(TypeFactory_ptr tfac) : ConstantFactory(tfac) {}
       virtual ~ConstantFactory64() {}
       virtual const Value_ptr makeIntegerConstant(MiniMC::BV64, TypeID);
+      virtual const Value_ptr makeFloatConstant(MiniMC::BV64, TypeID);
       virtual const Value_ptr makeAggregateConstant(const aggr_input& inp, bool);
       virtual const Value_ptr makeFunctionPointer(MiniMC::func_t);
       virtual const Value_ptr makeLocationPointer(MiniMC::func_t, MiniMC::base_t);

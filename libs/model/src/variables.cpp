@@ -20,26 +20,45 @@ namespace MiniMC {
       switch (ty) {
         case MiniMC::Model::TypeID::Bool:
           retval.reset(new Bool(static_cast<MiniMC::BV8>(val)));
-	  type = typefact->makeBoolType ();
-	  break;
+          type = typefact->makeBoolType ();
+          break;
         case MiniMC::Model::TypeID::I8:
           retval.reset(new MiniMC::Model::TConstant<MiniMC::BV8>(static_cast<MiniMC::BV8>(val)));
-	  type = typefact->makeIntegerType (8);
-	  break;
+          type = typefact->makeIntegerType (8);
+          break;
         case MiniMC::Model::TypeID::I16:
           retval.reset(new MiniMC::Model::TConstant<MiniMC::BV16>(static_cast<MiniMC::BV16>(val)));
-	  type = typefact->makeIntegerType (16);
-	  break;
+          type = typefact->makeIntegerType (16);
+          break;
         case MiniMC::Model::TypeID::I32:
           retval.reset(new MiniMC::Model::TConstant<MiniMC::BV32>(static_cast<MiniMC::BV32>(val)));
-	  type = typefact->makeIntegerType (32);
-	  break;
+          type = typefact->makeIntegerType (32);
+          break;
         case MiniMC::Model::TypeID::I64:
           retval.reset(new MiniMC::Model::TConstant<MiniMC::BV64>(static_cast<MiniMC::BV64>(val)));
-	  type = typefact->makeIntegerType (64);
-	  break;
-      default:
-	throw MiniMC::Support::Exception("Error");
+          type = typefact->makeIntegerType (64);
+          break;
+        default:
+          throw MiniMC::Support::Exception("Error");
+      }
+      retval->setType(type);
+      return retval;
+    }
+    
+    const Value_ptr ConstantFactory64::makeFloatConstant(MiniMC::BV64 val, TypeID ty) {
+      Value_ptr retval;
+      Type_ptr type;
+      switch (ty) {
+        case MiniMC::Model::TypeID::Float:
+          retval.reset(new MiniMC::Model::TConstant<MiniMC::BV32>(static_cast<MiniMC::BV32>(val)));
+          type = typefact->makeFloatType ();
+          break;
+        case MiniMC::Model::TypeID::Double:
+          retval.reset(new MiniMC::Model::TConstant<MiniMC::BV64>(static_cast<MiniMC::BV64>(val)));
+          type = typefact->makeDoubleType ();
+          break;
+        default:
+          throw MiniMC::Support::Exception("Error");
       }
       retval->setType(type);
       return retval;
@@ -49,16 +68,16 @@ namespace MiniMC {
     const Value_ptr ConstantFactory64::makeFunctionPointer(MiniMC::func_t id) {
       auto ptrtype = typefact->makePointerType ();
       Value_ptr v;
-      
+
       if (ptrtype->getSize () == 4) {
-	v.reset (new MiniMC::Model::Pointer32 (MiniMC::pointer32_t::makeFunctionPointer (id)));  
+        v.reset (new MiniMC::Model::Pointer32 (MiniMC::pointer32_t::makeFunctionPointer (id)));  
       }
 
       else {
-	v.reset (new MiniMC::Model::Pointer (MiniMC::pointer64_t::makeFunctionPointer (id)));  
+        v.reset (new MiniMC::Model::Pointer (MiniMC::pointer64_t::makeFunctionPointer (id)));  
       }
-      
-      
+
+
       v->setType (ptrtype);
       return v;
     }
@@ -68,68 +87,68 @@ namespace MiniMC {
       Value_ptr v;
 
       if (ptrtype->getSize () == 4) {
-	v.reset (new MiniMC::Model::Pointer32 (MiniMC::pointer32_t::makeLocationPointer (id,lid)));  
+        v.reset (new MiniMC::Model::Pointer32 (MiniMC::pointer32_t::makeLocationPointer (id,lid)));  
       }
 
       else {
-	v.reset (new MiniMC::Model::Pointer (MiniMC::pointer64_t::makeLocationPointer (id,lid)));  
+        v.reset (new MiniMC::Model::Pointer (MiniMC::pointer64_t::makeLocationPointer (id,lid)));  
       }
-      
+
 
       v->setType (ptrtype);
       return v;
     }
-    
-    
-    
+
+
+
     const Value_ptr ConstantFactory64::makeHeapPointer(MiniMC::base_t base) {
       auto ptrtype = typefact->makePointerType ();
       Value_ptr v;
 
       if (ptrtype->getSize () == 4) {
-	v.reset (new MiniMC::Model::Pointer32 (MiniMC::pointer32_t::makeHeapPointer (base,0)));  
+        v.reset (new MiniMC::Model::Pointer32 (MiniMC::pointer32_t::makeHeapPointer (base,0)));  
       }
 
       else {
-	v.reset (new MiniMC::Model::Pointer (MiniMC::pointer64_t::makeHeapPointer (base,0)));  
+        v.reset (new MiniMC::Model::Pointer (MiniMC::pointer64_t::makeHeapPointer (base,0)));  
       }
       v->setType (ptrtype);
       return v;
     }
-    
+
     const Value_ptr ConstantFactory64::makeUndef(TypeID ty,std::size_t size) {
       Value_ptr val(new MiniMC::Model::Undef());
       Type_ptr type;
 
       switch (ty) {
-      case TypeID::I8:
-	type = typefact->makeIntegerType (8);
-	break;
-      case TypeID::I16:
-	type = typefact->makeIntegerType (16);
-	break;
-      case TypeID::I32:
-	type = typefact->makeIntegerType (32);
-	break;
-      case TypeID::I64:
-	type = typefact->makeIntegerType (64);
-	break;
-      case TypeID::Bool:
-	type = typefact->makeBoolType ();
-	break;
-      case TypeID::Pointer:
-	type = typefact->makePointerType ();
-	break;
-      case TypeID::Struct:
-	type = typefact->makeStructType (size);
-	break;
-      case TypeID::Array:
-	type = typefact->makeArrayType (size);
-	break;
-      default:
-	throw MiniMC::Support::Exception ("Errror");
+        case TypeID::I8:
+          type = typefact->makeIntegerType (8);
+          break;
+        case TypeID::I16:
+          type = typefact->makeIntegerType (16);
+          break;
+        case TypeID::I32:
+          type = typefact->makeIntegerType (32);
+          break;
+        case TypeID::I64:
+          type = typefact->makeIntegerType (64);
+          break;
+        case TypeID::Bool:
+          type = typefact->makeBoolType ();
+          break;
+        case TypeID::Pointer:
+          type = typefact->makePointerType ();
+          break;
+        case TypeID::Struct:
+          type = typefact->makeStructType (size);
+          break;
+        case TypeID::Array:
+          type = typefact->makeArrayType (size);
+          break;
+        default:
+          throw MiniMC::Support::Exception ("Errror");
       }
-      
+
       val->setType(type);
       return val;
     }
@@ -172,32 +191,32 @@ namespace MiniMC {
             break;
           case MiniMC::Model::TypeID::Struct:
           case MiniMC::Model::TypeID::Array: {
-            auto aggr = std::static_pointer_cast<MiniMC::Model::AggregateConstant>(c);
-            out = std::copy(aggr->begin(), aggr->end(), out);
-	    break;
-	  }
+                                               auto aggr = std::static_pointer_cast<MiniMC::Model::AggregateConstant>(c);
+                                               out = std::copy(aggr->begin(), aggr->end(), out);
+                                               break;
+                                             }
           default:
-            throw MiniMC::Support::Exception("Unknown how to convert to aggregate");
+                                             throw MiniMC::Support::Exception("Unknown how to convert to aggregate");
         }
       }
       Type_ptr type;
       if (isArray)
-	type = typefact->makeArrayType (size);
+        type = typefact->makeArrayType (size);
       else
-	type = typefact->makeStructType (size);
-      
+        type = typefact->makeStructType (size);
+
       Value_ptr v(new MiniMC::Model::AggregateConstant(reinterpret_cast<MiniMC::BV8*>(data.get()), size));
       v->setType (type);
       return v;
-  }
+    }
 
     Undef::Undef() : Constant(ValueInfo<Undef>::type_t()) {}
     Register::Register(const Symbol& name, RegisterDescr* owner) : Value(ValueInfo<Register>::type_t()),
-                                                                        name(name), owner(owner) {}
+    name(name), owner(owner) {}
 
     AggregateConstant::AggregateConstant(MiniMC::BV8* data, std::size_t s) : Constant(ValueInfo<AggregateConstant>::type_t()),
-                                                                                 value(new MiniMC::BV8[s]),
-                                                                                 size(s) {
+    value(new MiniMC::BV8[s]),
+    size(s) {
       std::copy(data, data + s, value.get());
     }
 

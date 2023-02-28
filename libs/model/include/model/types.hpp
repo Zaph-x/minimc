@@ -54,6 +54,37 @@ namespace MiniMC {
       virtual std::size_t getSize() const = 0;
 
       TypeID getTypeID() const { return id; }
+
+      std::string get_type_name() const {
+        switch (id) {
+          case TypeID::Bool:
+            return "bool";
+          case TypeID::I8:
+            return "i8";
+          case TypeID::I16:
+            return "i16";
+          case TypeID::I32:
+            return "i32";
+          case TypeID::I64:
+            return "i64";
+          case TypeID::Float:
+            return "float";
+          case TypeID::Double:
+            return "double";
+          case TypeID::Pointer:
+            return "pointer";
+          case TypeID::Pointer32:
+            return "pointer32";
+          case TypeID::Struct:
+            return "struct";
+          case TypeID::Array:
+            return "array";
+          case TypeID::Void:
+            return "void";
+          default:
+            return "unknown";
+        }
+      }
       
       virtual bool isEqual(const Type& t) {
         return (&t == this) ||
