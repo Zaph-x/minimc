@@ -6,111 +6,115 @@
 namespace MiniMC {
   namespace Model {
     class IntegerType : public Type {
-    public:
-      IntegerType(size_t b,TypeID id) : Type(id),
-                              bytes(b) {}
-      std::size_t getSize() const override { return bytes; }
-      std::ostream& output(std::ostream& os) const override  {
-	std::ostream copy (os.rdbuf());
-	copy << std::dec << std::noshowbase <<  "Int" << bytes * 8;
-	return os;
-      }
-      bool isInteger () const override {return true;}
-    protected:
-      virtual bool innerEq(const Type& t) override {
-        return bytes == static_cast<const IntegerType&>(t).bytes;
-      }
+      public:
+        IntegerType(size_t b,TypeID id) : Type(id),
+        bytes(b) {}
+        std::size_t getSize() const override { return bytes; }
+        std::ostream& output(std::ostream& os) const override  {
+          std::ostream copy (os.rdbuf());
+          copy << std::dec << std::noshowbase <<  "Int" << bytes * 8;
+          return os;
+        }
+        bool isInteger () const override {return true;}
+      protected:
+        virtual bool innerEq(const Type& t) override {
+          return bytes == static_cast<const IntegerType&>(t).bytes;
+        }
 
-    private:
-      size_t bytes;
+      private:
+        size_t bytes;
     };
 
     class FloatType : public Type {
-    public:
-      FloatType() : Type(TypeID::Float) {}
-      std::size_t getSize() const { return 4; }
-       std::ostream& output(std::ostream& os) const { return os << "Float"; }
-      bool innerEq(const Type& ) { return true; }
+      public:
+        FloatType() : Type(TypeID::Float) {}
+        std::size_t getSize() const override { return 4; }
+        std::ostream& output(std::ostream& os) const override { return os << "Float"; }
+        bool isFloat () const override {return true;}
+      protected:
+        bool innerEq(const Type& ) override { return true; }
     };
 
     class DoubleType : public Type {
-    public:
-      DoubleType() : Type(TypeID::Double) {}
-      std::size_t getSize() const { return 8; }
-      std::ostream& output(std::ostream& os) const { return os << "Double"; }
-      bool innerEq(const Type& ) { return false; }
+      public:
+        DoubleType() : Type(TypeID::Double) {}
+        std::size_t getSize() const override { return 8; }
+        std::ostream& output(std::ostream& os) const override { return os << "Double"; }
+        bool isDouble () const override {return true;}
+      protected:
+        bool innerEq(const Type& ) override { return true; }
     };
 
 #ifdef MINIMC32
     class PointerType : public Type {
-    public:
-      PointerType() : Type(TypeID::Pointer32) {}
-      std::size_t getSize() const { return sizeof(MiniMC::pointer32_t); }
-      std::ostream& output(std::ostream& os) const { return os << "Pointer32"; }
-      bool innerEq(const Type& ) { return true; }
+      public:
+        PointerType() : Type(TypeID::Pointer32) {}
+        std::size_t getSize() const { return sizeof(MiniMC::pointer32_t); }
+        std::ostream& output(std::ostream& os) const { return os << "Pointer32"; }
+        bool innerEq(const Type& ) { return true; }
     };
 #else
     class PointerType : public Type {
-    public:
-      PointerType() : Type(TypeID::Pointer) {}
-      std::size_t getSize() const { return sizeof(MiniMC::pointer_t); }
-      std::ostream& output(std::ostream& os) const { return os << "Pointer"; }
-      bool innerEq(const Type& ) { return true; }
+      public:
+        PointerType() : Type(TypeID::Pointer) {}
+        std::size_t getSize() const { return sizeof(MiniMC::pointer_t); }
+        std::ostream& output(std::ostream& os) const { return os << "Pointer"; }
+        bool innerEq(const Type& ) { return true; }
     };
 #endif
-    
-class BoolType : public Type {
-    public:
-      BoolType() : Type(TypeID::Bool) {}
-      std::size_t getSize() const { return 1; }
-      std::ostream& output(std::ostream& os) const { return os << "Bool"; }
-      bool innerEq(const Type&) { return true; }
+
+    class BoolType : public Type {
+      public:
+        BoolType() : Type(TypeID::Bool) {}
+        std::size_t getSize() const { return 1; }
+        std::ostream& output(std::ostream& os) const { return os << "Bool"; }
+        bool innerEq(const Type&) { return true; }
     };
 
     class VoidType : public Type {
-    public:
-      VoidType() : Type(TypeID::Void) {}
-      std::size_t getSize() const { return 0; }
-      std::ostream& output(std::ostream& os) const { return os << "Void"; }
-      bool innerEq(const Type&) { return true; }
+      public:
+        VoidType() : Type(TypeID::Void) {}
+        std::size_t getSize() const { return 0; }
+        std::ostream& output(std::ostream& os) const { return os << "Void"; }
+        bool innerEq(const Type&) { return true; }
     };
 
     class AggregateType : public Type {
-    public:
-      AggregateType(TypeID h, size_t size) : Type(h), size(size) {}
-      std::size_t getSize() const { return size; }
-      std::ostream& output(std::ostream& os) const { 
-	std::ostream copy (os.rdbuf());  
-	copy << "Aggr" << std::dec << std::noshowbase << size;
-	return os;
-      }
-      bool innerEq(const Type& t) { return size == static_cast<const AggregateType&>(t).size; }
-      bool isAggregate () const override {return true;}
-      
-    private:
-      std::size_t size;
+      public:
+        AggregateType(TypeID h, size_t size) : Type(h), size(size) {}
+        std::size_t getSize() const { return size; }
+        std::ostream& output(std::ostream& os) const { 
+          std::ostream copy (os.rdbuf());  
+          copy << "Aggr" << std::dec << std::noshowbase << size;
+          return os;
+        }
+        bool innerEq(const Type& t) { return size == static_cast<const AggregateType&>(t).size; }
+        bool isAggregate () const override {return true;}
+
+      private:
+        std::size_t size;
     };
 
     class StructType : public AggregateType {
-    public:
-      StructType(std::size_t size) : AggregateType(TypeID::Struct, size) {}
+      public:
+        StructType(std::size_t size) : AggregateType(TypeID::Struct, size) {}
     };
 
     class ArrayType : public AggregateType {
-    public:
-      ArrayType(std::size_t size) : AggregateType(TypeID::Array, size) {}
+      public:
+        ArrayType(std::size_t size) : AggregateType(TypeID::Array, size) {}
     };
 
     struct TypeFactory64::Inner {
       Inner() : vt(new VoidType()),
-                dt(new DoubleType()),
-                ft(new FloatType()),
-                bt(new BoolType()),
-                pt(new PointerType()),
-                i8(new IntegerType(1,TypeID::I8)),
-                i16(new IntegerType(2,TypeID::I16)),
-                i32(new IntegerType(4,TypeID::I32)),
-                i64(new IntegerType(8,TypeID::I64)) {}
+      dt(new DoubleType()),
+      ft(new FloatType()),
+      bt(new BoolType()),
+      pt(new PointerType()),
+      i8(new IntegerType(1,TypeID::I8)),
+      i16(new IntegerType(2,TypeID::I16)),
+      i32(new IntegerType(4,TypeID::I32)),
+      i64(new IntegerType(8,TypeID::I64)) {}
       Type_ptr vt;
       Type_ptr dt;
       Type_ptr ft;

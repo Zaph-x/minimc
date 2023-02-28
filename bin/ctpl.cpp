@@ -20,7 +20,21 @@ namespace {
 std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc){
   std::vector<std::string> registers;
   MiniMC::Model::Location location = *loc.get();
-  if (location.hasOutgoingEdge()){
+
+  std::vector<MiniMC::Model::Register_ptr> registersInLocation = location.getInfo().getRegisters().getRegisters();
+
+  auto edge = location.iebegin();
+  std::cout << location.nbIncomingEdges() << std::endl;
+  if (location.nbIncomingEdges() == 0){
+    return registers;
+  }
+  auto actual_edge = *edge;
+  MiniMC::Model::InstructionStream incomingInstructions = actual_edge->getInstructions();
+  std::cout << "Beginning iteration of incoming instructions." << std::endl;
+  for (MiniMC::Model::Instruction instr: incomingInstructions){
+    std::cout << "Instruction: " << instr << std::endl;
+    std::cout << "Instruction opcode: " << instr.getOpcode() << std::endl;
+    std::cout << "Instruction operands: " << instr.getContent().index() << std::endl;
 
   }
 
@@ -36,7 +50,11 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
   std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:
-  for (std::shared_ptr<MiniMC::Model::Function> function: functions){
+  for (const std::shared_ptr<MiniMC::Model::Function>& function: functions){
+    for (const std::shared_ptr<MiniMC::Model::Location>& location: function->getCFA().getLocations()){
+       std::cout << registersInUse(location). << std::endl;
+
+    }
     std::vector<std::shared_ptr<MiniMC::Model::Edge>> functionEdges = function->getCFA().getEdges();
     for (std::shared_ptr<MiniMC::Model::Edge> edge: functionEdges){
       MiniMC::Model::Edge derefEdge = *edge.get();
@@ -62,15 +80,17 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
         if (content.index() == 14){
                 auto reg = std::get<14>(content);
-             //   std::cout << reg.res.get()->string_repr() << std::endl;
+                //std::cout << reg.res.get()->string_repr() << std::endl;
                 std::cout << reg.function.get() << std::endl;
-                std::cout << reg.function << std::endl;
+                std::cout << *reg.function << std::endl;
 
                 std::vector<MiniMC::Model::Value_ptr> params = reg.params;
-
+                std::cout << "params" << std::endl;
                 for (auto param: params){
-                  std::cout << param.get()->string_repr() << std::endl;
+                  std::cout << param.get()->type_t() << std::endl;
+
                 }
+                std::cout << "----------------" << std::endl;
         }
 
 
@@ -81,6 +101,8 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
   return MiniMC::Host::ExitCodes::AllGood;
 }
+
+
 
 
 
