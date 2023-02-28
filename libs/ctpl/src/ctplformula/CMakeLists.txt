@@ -1,1 +1,1 @@
-add_library(ctplformula STATIC Quantifier.cpp)
+add_library(ctplformula SHARED Lexer.cpp Tokens.cpp)
