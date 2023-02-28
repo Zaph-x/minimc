@@ -681,6 +681,8 @@ ASSUMEASSERTS
        */
       auto getOpcode() const { return opcode; }
 
+      auto getContent() const { return content; }
+
       template<InstructionCode c>
       auto& getOps () const {
 	return std::get<typename InstructionData<c>::Content> (content);

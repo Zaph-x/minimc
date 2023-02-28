@@ -1,1 +1,0 @@
-add_library (ctpl INTERFACE ctplAtom.h ctplTreeNode.h CtplOperator.h CtplOperator.h)
