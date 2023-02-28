@@ -41,6 +41,12 @@ namespace MiniMC {
         return MiniMC::Model::TypeID::Struct;
       }
 
+      else if (type->isFloatTy()) {
+        return MiniMC::Model::TypeID::Float;
+      } else if (type->isDoubleTy()) {
+        return MiniMC::Model::TypeID::Double;
+      }
+
       else if (type->isArrayTy()) {
         return MiniMC::Model::TypeID::Array;
       }
@@ -49,37 +55,37 @@ namespace MiniMC {
     }
 
     MiniMC::Model::Type_ptr GLoadContext::getType (llvm::Type* type ) {
-    
+
       auto type_id = getTypeID (type); 
       switch  (type_id) {
-      case MiniMC::Model::TypeID::Bool:
-	return tfact.makeBoolType ();
-      case MiniMC::Model::TypeID::I8:
-	return tfact.makeIntegerType (8);
-      case MiniMC::Model::TypeID::I16:
-	return tfact.makeIntegerType (16);
-      case MiniMC::Model::TypeID::I32:
-	return tfact.makeIntegerType (32);
-      case MiniMC::Model::TypeID::I64:
-	return tfact.makeIntegerType (64);
-      case MiniMC::Model::TypeID::Pointer:
-	return tfact.makePointerType ();
-      case MiniMC::Model::TypeID::Array:
-	return tfact.makeArrayType (computeSizeInBytes (type));
-      case MiniMC::Model::TypeID::Struct:
-	return tfact.makeStructType (computeSizeInBytes (type));
-      case MiniMC::Model::TypeID::Void:
-	  return tfact.makeVoidType ();
-      case MiniMC::Model::TypeID::Float:
-	  return tfact.makeFloatType ();
-      case MiniMC::Model::TypeID::Double:
-	  return tfact.makeDoubleType ();
-	  
-      default:
-	throw MiniMC::Support::Exception ("Unsupported type");
+        case MiniMC::Model::TypeID::Bool:
+          return tfact.makeBoolType ();
+        case MiniMC::Model::TypeID::I8:
+          return tfact.makeIntegerType (8);
+        case MiniMC::Model::TypeID::I16:
+          return tfact.makeIntegerType (16);
+        case MiniMC::Model::TypeID::I32:
+          return tfact.makeIntegerType (32);
+        case MiniMC::Model::TypeID::I64:
+          return tfact.makeIntegerType (64);
+        case MiniMC::Model::TypeID::Pointer:
+          return tfact.makePointerType ();
+        case MiniMC::Model::TypeID::Array:
+          return tfact.makeArrayType (computeSizeInBytes (type));
+        case MiniMC::Model::TypeID::Struct:
+          return tfact.makeStructType (computeSizeInBytes (type));
+        case MiniMC::Model::TypeID::Void:
+          return tfact.makeVoidType ();
+        case MiniMC::Model::TypeID::Float:
+          return tfact.makeFloatType ();
+        case MiniMC::Model::TypeID::Double:
+          return tfact.makeDoubleType ();
+
+        default:
+          throw MiniMC::Support::Exception ("Unsupported type");
       }
     }
-    
+
     MiniMC::BV32 GLoadContext::computeSizeInBytes (llvm::Type* ty ) {
       if (ty->isArrayTy()) {
         return ty->getArrayNumElements() * computeSizeInBytes(ty->getArrayElementType());
@@ -95,14 +101,20 @@ namespace MiniMC {
       }
 
       else if (ty->isIntegerTy ()) {
-	return tfact.makeIntegerType (ty->getIntegerBitWidth())->getSize ();
+        return tfact.makeIntegerType (ty->getIntegerBitWidth())->getSize ();
       }
       else if (ty->isPointerTy ()) {
-	return tfact.makePointerType ()->getSize ();
+        return tfact.makePointerType ()->getSize ();
+      }
+      else if (ty->isFloatTy ()) {
+        return tfact.makeFloatType ()->getSize ();
+      }
+      else if (ty->isDoubleTy ()) {
+        return tfact.makeDoubleType ()->getSize ();
       }
       throw MiniMC::Support::Exception("Can't calculate size of type");
     }
-    
+
     MiniMC::Model::Value_ptr GLoadContext::findValue(const llvm::Value* val) {
       auto constant = llvm::dyn_cast<llvm::Constant>(val);
       if (constant) {
@@ -118,6 +130,13 @@ namespace MiniMC {
           if (csti) {
             auto type = getTypeID(csti->getType());
             auto cst = cfact.makeIntegerConstant(csti->getZExtValue(), type);
+            return cst;
+          }
+        } else if (ltype->isFloatTy() || ltype->isDoubleTy()) {
+          const llvm::ConstantFP* cstf = llvm::dyn_cast<const llvm::ConstantFP>(constant);
+          if (cstf) {
+            auto type = getTypeID(cstf->getType());
+            auto cst = cfact.makeFloatConstant(cstf->getValueAPF().convertToDouble(), type);
             return cst;
           }
         } else if (ltype->isStructTy() || ltype->isArrayTy()) {
@@ -151,7 +170,7 @@ namespace MiniMC {
           // assert(false && "FAil");
 
         } else if (llvm::isa<llvm::Function>(val) ||
-                   llvm::isa<llvm::GlobalVariable>(val)) {
+            llvm::isa<llvm::GlobalVariable>(val)) {
           return values.at(val);
         } else if (const llvm::BlockAddress* block = llvm::dyn_cast<const llvm::BlockAddress>(val)) {
           return values.at(block->getBasicBlock());
@@ -170,10 +189,10 @@ namespace MiniMC {
       }
 
       else {
-	return values.at (val);
+        return values.at (val);
       }
     }
-    
-     
+
+
   } // namespace Loaders
 } // namespace MiniMC
