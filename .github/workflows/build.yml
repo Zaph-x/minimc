@@ -15,7 +15,7 @@ jobs:
     - name: build
       run: cd build && make
     - name: test
-      run: cd .. && ctest --output-on-failure
+      run: ctest --output-on-failure
     - name: package
       run: cd build && make package
     - uses: actions/upload-artifact@v2
