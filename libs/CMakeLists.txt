@@ -11,7 +11,7 @@ add_subdirectory (algorithms)
 add_subdirectory (util)
 add_subdirectory (vm)
 add_subdirectory (smt)
-#add_subdirectory (ctpl)
+add_subdirectory (ctpl)
 
 add_library (minimclib SHARED dummy.cpp)
 target_link_libraries (minimclib PUBLIC model)
@@ -24,7 +24,7 @@ target_link_libraries (minimclib PUBLIC algorithms)
 target_link_libraries (minimclib PUBLIC util)
 target_link_libraries (minimclib PUBLIC host)
 target_link_libraries (minimclib PUBLIC smt)
-#target_link_libraries (minimclib PUBLIC ctpl)
+target_link_libraries (minimclib PUBLIC ctpl)
 
 INSTALL (TARGETS minimclib )
  

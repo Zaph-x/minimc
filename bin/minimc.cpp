@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
         try {
           control.addEntryPoint(s, {});
         } catch (MiniMC::Support::FunctionDoesNotExist&) {
-          messager.message<MiniMC::Support::Severity::Error>(MiniMC::Support::Localiser{"Function '%1%' specicifed as entry point does not exists. "}.format(s));
+          messager.message<MiniMC::Support::Severity::Error>(MiniMC::Support::Localiser{"Function '%1%' specified as entry point does not exists. "}.format(s));
           return -1;
         }
       }
