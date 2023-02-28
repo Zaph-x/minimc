@@ -22,9 +22,13 @@ std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc){
   MiniMC::Model::Location location = *loc.get();
 
   std::vector<MiniMC::Model::Register_ptr> registersInLocation = location.getInfo().getRegisters().getRegisters();
-
+  std::cout << "registersInUse entered" << std::endl;
   auto edge = location.iebegin();
-  std::cout << location.nbIncomingEdges() << std::endl;
+  std::cout << location.getInfo().getName() << std::endl;
+  for (auto reg : registersInLocation){
+    std::cout << reg->getName() << std::endl;
+  }
+
   if (location.nbIncomingEdges() == 0){
     return registers;
   }
@@ -35,7 +39,7 @@ std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc){
     std::cout << "Instruction: " << instr << std::endl;
     std::cout << "Instruction opcode: " << instr.getOpcode() << std::endl;
     std::cout << "Instruction operands: " << instr.getContent().index() << std::endl;
-
+    instr.getContent().
   }
 
   return registers;
@@ -52,7 +56,9 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 // EFFICIENCY ITSELF:
   for (const std::shared_ptr<MiniMC::Model::Function>& function: functions){
     for (const std::shared_ptr<MiniMC::Model::Location>& location: function->getCFA().getLocations()){
-       std::cout << registersInUse(location). << std::endl;
+       for (std::string str : registersInUse(location)){
+         std::cout << str << std::endl;
+       }
 
     }
     std::vector<std::shared_ptr<MiniMC::Model::Edge>> functionEdges = function->getCFA().getEdges();
