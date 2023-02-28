@@ -61,6 +61,8 @@ namespace MiniMC {
       }
       
       virtual bool isInteger () const {return false;}
+      virtual bool isFloat () const {return false;}
+      virtual bool isDouble () const {return false;}
       virtual bool isAggregate () const {return false;}
       
     protected:

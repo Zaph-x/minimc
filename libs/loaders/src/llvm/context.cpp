@@ -41,6 +41,12 @@ namespace MiniMC {
         return MiniMC::Model::TypeID::Struct;
       }
 
+      else if (type->isFloatTy()) {
+        return MiniMC::Model::TypeID::Float;
+      } else if (type->isDoubleTy()) {
+        return MiniMC::Model::TypeID::Double;
+      }
+
       else if (type->isArrayTy()) {
         return MiniMC::Model::TypeID::Array;
       }
