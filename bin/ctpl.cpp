@@ -37,11 +37,26 @@ std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc){
   MiniMC::Model::InstructionStream incomingInstructions = actual_edge->getInstructions();
   std::cout << "Beginning iteration of incoming instructions." << std::endl;
   for (MiniMC::Model::Instruction instr: incomingInstructions){
-    std::cout << "Instruction: " << instr << std::endl;
-    std::cout << "Instruction opcode: " << instr.getOpcode() << std::endl;
-    std::cout << "Instruction operands: " << instr.getContent().index() << std::endl;
-    instr.getContent().
+    auto cont = instr.getContent();
+    if (cont.index() == 14){
+      MiniMC::Model::CallContent call = std::get<14>(cont);
+      for (auto param: call.params) {
+          std::cout << "Resulting register: " << call.res->string_repr() << std::endl;
+          std::cout << "Function: " << call.function->string_repr() << std::endl;
+          std::cout << "Parameter: " << param->string_repr() << std::endl;
+      }
+    }
+//    if (cont.index() == 9){
+//      MiniMC::Model::NonDetContent non = std::get<9>(cont);
+//      for (auto param: call.params) {
+//          std::cout << "Resulting register: " << call.res->string_repr() << std::endl;
+//          std::cout << "Function: " << call.function->string_repr() << std::endl;
+//          std::cout << "Parameter: " << param->string_repr() << std::endl;
+//      }
+//    }
   }
+  auto abe = "abe";
+
 
   return registers;
 
