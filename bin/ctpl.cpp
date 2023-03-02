@@ -67,7 +67,7 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
   auto& prgm = *controller.getProgram();
 
-  std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
+it p  std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:
   for (const std::shared_ptr<MiniMC::Model::Function>& function: functions){
     for (const std::shared_ptr<MiniMC::Model::Location>& location: function->getCFA().getLocations()){
