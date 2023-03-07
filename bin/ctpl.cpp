@@ -22,6 +22,25 @@ std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc){
   MiniMC::Model::Location location = *loc.get();
   if (location.hasOutgoingEdge()){
 
+  std::vector<MiniMC::Model::Register_ptr> registersInLocation = location.getInfo().getRegisters().getRegisters();
+  std::cout << "registersInUse entered" << std::endl;
+  auto edge = location.iebegin();
+  std::cout << location.getInfo().getName() << std::endl;
+  for (auto reg : registersInLocation){
+    std::cout << reg->getName() << std::endl;
+  }
+
+  if (location.nbIncomingEdges() == 0){
+    return registers;
+  }
+  auto actual_edge = *edge;
+  MiniMC::Model::InstructionStream incomingInstructions = actual_edge->getInstructions();
+  std::cout << "Beginning iteration of incoming instructions." << std::endl;
+  for (MiniMC::Model::Instruction instr: incomingInstructions){
+    std::cout << "Instruction: " << instr << std::endl;
+    std::cout << "Instruction opcode: " << instr.getOpcode() << std::endl;
+    std::cout << "Instruction operands: " << instr.getContent().index() << std::endl;
+    instr.getContent().
   }
 
   return registers;
@@ -36,7 +55,13 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
   std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:
-  for (std::shared_ptr<MiniMC::Model::Function> function: functions){
+  for (const std::shared_ptr<MiniMC::Model::Function>& function: functions){
+    for (const std::shared_ptr<MiniMC::Model::Location>& location: function->getCFA().getLocations()){
+       for (std::string str : registersInUse(location)){
+         std::cout << str << std::endl;
+       }
+
+    }
     std::vector<std::shared_ptr<MiniMC::Model::Edge>> functionEdges = function->getCFA().getEdges();
     for (std::shared_ptr<MiniMC::Model::Edge> edge: functionEdges){
       MiniMC::Model::Edge derefEdge = *edge.get();
