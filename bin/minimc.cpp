@@ -56,16 +56,6 @@ int main(int argc, char* argv[]) {
       if (!control.typecheck()) {
         return -1;
       }
-      transformProgram(control, options.transform);
-
-      for (std::string& s : options.load.tasks) {
-        try {
-          control.addEntryPoint(s, {});
-        } catch (MiniMC::Support::FunctionDoesNotExist&) {
-          messager.message<MiniMC::Support::Severity::Error>(MiniMC::Support::Localiser{"Function '%1%' specified as entry point does not exists. "}.format(s));
-          return -1;
-        }
-      }
 
       transformProgram (control,options.transform);
 
