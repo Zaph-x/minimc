@@ -77,10 +77,10 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
     }
     std::vector<std::shared_ptr<MiniMC::Model::Edge>> functionEdges = function->getCFA().getEdges();
-    for (std::shared_ptr<MiniMC::Model::Edge> edge: functionEdges){
-      MiniMC::Model::Edge derefEdge = *edge.get();
+    for (const std::shared_ptr<MiniMC::Model::Edge>& edge: functionEdges){
+      MiniMC::Model::Edge derefEdge = *edge;
       MiniMC::Model::InstructionStream instrStream = derefEdge.getInstructions();
-      for (auto instr: instrStream){
+      for (const auto& instr: instrStream){
         std::cout << instr.getOpcode() << std::endl;
         auto content = instr.getContent();
 
