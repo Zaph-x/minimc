@@ -20,11 +20,7 @@ include (dependencies/doctest.cmake)
 include (dependencies/smtlib.cmake)
 include (dependencies/llvm.cmake)
 include (dependencies/xxhash.cmake)
-FetchContent_Declare(
-        ctl-expr
-        URL https://github.com/sillydan1/ctl-expr/archive/refs/tags/v1.1.3.tar.gz
-)
-FetchContent_MakeAvailable(ctl-expr)
+include (dependencies/ctl-expr.cmake)
 
 SET (ToolName minimc)
 SET (VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
