@@ -21,7 +21,6 @@ include (dependencies/smtlib.cmake)
 include (dependencies/llvm.cmake)
 include (dependencies/xxhash.cmake)
 
-
 SET (ToolName minimc)
 SET (VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 SET (VERSION_MINOR ${PROJECT_VERSION_MINOR})
