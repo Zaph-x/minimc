@@ -17,50 +17,49 @@ namespace {
   };
 }
 
-std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc){
+std::vector<std::string> registersInUse(MiniMC::Model::Location_ptr loc) {
   std::vector<std::string> registers;
   MiniMC::Model::Location location = *loc.get();
-  if (location.hasOutgoingEdge()){
+  if (location.hasOutgoingEdge()) {
 
-  std::vector<MiniMC::Model::Register_ptr> registersInLocation = location.getInfo().getRegisters().getRegisters();
-  std::cout << "registersInUse entered" << std::endl;
-  auto edge = location.iebegin();
-  std::cout << location.getInfo().getName() << std::endl;
-  for (auto reg : registersInLocation){
-    std::cout << reg->getName() << std::endl;
-  }
+    std::vector<MiniMC::Model::Register_ptr> registersInLocation = location.getInfo().getRegisters().getRegisters();
+    std::cout << "registersInUse entered" << std::endl;
+    auto edge = location.iebegin();
+    std::cout << location.getInfo().getName() << std::endl;
+    for (auto reg : registersInLocation) {
+      std::cout << reg->getName() << std::endl;
+    }
 
-  if (location.nbIncomingEdges() == 0){
-    return registers;
-  }
-  auto actual_edge = *edge;
-  MiniMC::Model::InstructionStream incomingInstructions = actual_edge->getInstructions();
-  std::cout << "Beginning iteration of incoming instructions." << std::endl;
-  for (MiniMC::Model::Instruction instr: incomingInstructions){
-    auto cont = instr.getContent();
-    if (cont.index() == 14){
-      MiniMC::Model::CallContent call = std::get<14>(cont);
-      for (auto param: call.params) {
+    if (location.nbIncomingEdges() == 0) {
+      return registers;
+    }
+    auto actual_edge = *edge;
+    MiniMC::Model::InstructionStream incomingInstructions = actual_edge->getInstructions();
+    std::cout << "Beginning iteration of incoming instructions." << std::endl;
+    for (MiniMC::Model::Instruction instr : incomingInstructions) {
+      auto cont = instr.getContent();
+      if (cont.index() == 14) {
+        MiniMC::Model::CallContent call = std::get<14>(cont);
+        for (auto param : call.params) {
           std::cout << "Resulting register: " << call.res->string_repr() << std::endl;
           std::cout << "Function: " << call.function->string_repr() << std::endl;
           std::cout << "Parameter: " << param->string_repr() << std::endl;
+        }
       }
+      //    if (cont.index() == 9){
+      //      MiniMC::Model::NonDetContent non = std::get<9>(cont);
+      //      for (auto param: call.params) {
+      //          std::cout << "Resulting register: " << call.res->string_repr() << std::endl;
+      //          std::cout << "Function: " << call.function->string_repr() << std::endl;
+      //          std::cout << "Parameter: " << param->string_repr() << std::endl;
+      //      }
+      //    }
     }
-//    if (cont.index() == 9){
-//      MiniMC::Model::NonDetContent non = std::get<9>(cont);
-//      for (auto param: call.params) {
-//          std::cout << "Resulting register: " << call.res->string_repr() << std::endl;
-//          std::cout << "Function: " << call.function->string_repr() << std::endl;
-//          std::cout << "Parameter: " << param->string_repr() << std::endl;
-//      }
-//    }
-  }
-  auto abe = "abe";
+    auto abe = "abe";
 
-
-  return registers;
-
-};
+    return registers;
+  };
+}
 
 MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const MiniMC::CPA::AnalysisBuilder& cpa) {
   MiniMC::Support::Messager messager;
@@ -68,7 +67,7 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
   auto& prgm = *controller.getProgram();
 
-it p  std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
+  std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:
   for (const std::shared_ptr<MiniMC::Model::Function>& function: functions){
     for (const std::shared_ptr<MiniMC::Model::Location>& location: function->getCFA().getLocations()){
