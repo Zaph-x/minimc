@@ -5,7 +5,7 @@ FetchContent_Declare(ctl-expr
         SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/ctl-expr-src
         BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ctl-expr-build
         GIT_REPOSITORY https://github.com/sillydan1/ctl-expr.git
-        GIT_TAG v1.1.3
+        GIT_TAG v2.0.0
         )
 
 if (NOT ctl-expr_POPULATED)

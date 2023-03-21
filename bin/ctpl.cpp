@@ -65,7 +65,7 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
   MiniMC::Support::Messager messager;
   messager.message("Initiating EnumStates");
 
-  auto& prgm = *controller.getProgram();
+  MiniMC::Model::Program& prgm = *controller.getProgram();
 
   std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:

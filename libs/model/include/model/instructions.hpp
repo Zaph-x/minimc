@@ -366,6 +366,7 @@ namespace MiniMC {
       Value_ptr res;
       Value_ptr min;
       Value_ptr max;
+      std::string arguments
     };
     
     template <>
@@ -413,6 +414,7 @@ ASSUMEASSERTS
       Value_ptr res;
       Value_ptr function;
       std::vector<Value_ptr> params;
+      std::string argument;
     };
     
     template <>
