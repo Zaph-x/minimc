@@ -25,7 +25,7 @@ po::options_description transformOptions(SetupOptions& options) {
     ("transform.unroll", boost::program_options::value(&options.transform.unrollLoops) , "Unroll (all) loops")
     ("transform.inline", boost::program_options::value(&options.transform.inlineFunctions) , "Inline function calls for all entry_points");
     
-    
+
   return general;
 }
 
