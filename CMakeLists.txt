@@ -21,6 +21,7 @@ include (dependencies/smtlib.cmake)
 include (dependencies/llvm.cmake)
 include (dependencies/xxhash.cmake)
 include (dependencies/leg-assembly-loader.cmake)
+include (dependencies/ctl-expr.cmake)
 
 
 SET (ToolName minimc)
