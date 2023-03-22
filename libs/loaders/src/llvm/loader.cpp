@@ -143,8 +143,9 @@ namespace MiniMC {
 	  lcontext.addValue (&g, gvar);
 	  if (g.hasInitializer()) {
 	    auto val = lcontext.findValue(g.getInitializer());
-	    instr.push_back(MiniMC::Model::createInstruction<MiniMC::Model::InstructionCode::Store>({.addr = gvar,
-		  .storee = val}));
+	    // auto varName;
+            instr.push_back(MiniMC::Model::createInstruction<MiniMC::Model::InstructionCode::Store>({.addr = gvar,
+		  .storee = val }));
 	  }
 	}
 	if (instr.size()) {

@@ -464,6 +464,7 @@ ASSUMEASSERTS
     struct StoreContent {
       Value_ptr addr;
       Value_ptr storee;
+      std::string variableName;
     };
     
     template <>

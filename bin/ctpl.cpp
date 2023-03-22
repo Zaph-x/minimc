@@ -4,6 +4,7 @@
 #include "model/controller.hpp"
 #include "model/location.hpp"
 #include "support/feedback.hpp"
+#include "ctpl/ctl-checker.hpp"
 
 #include <boost/program_options.hpp>
 
@@ -66,6 +67,8 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
   messager.message("Initiating EnumStates");
 
   MiniMC::Model::Program& prgm = *controller.getProgram();
+
+  checkSpec(prgm);
 
   std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:
