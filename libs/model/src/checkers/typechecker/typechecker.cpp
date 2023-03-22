@@ -282,6 +282,10 @@ namespace MiniMC {
             }
 
             auto func = prgm.getFunction(MiniMC::getFunctionId(ptr));
+            auto funcName = func->getSymbol().getFullName();
+            auto contentFuncName = content.function->string_repr();
+            auto funcParams = func->getParameters().size();
+            auto contenctParams = content.params.size();
             if (func->getParameters().size() != content.params.size()) {
               mess.message<MiniMC::Support::Severity::Error>("Inconsistent number of parameters between call and function prototype");
               return false;

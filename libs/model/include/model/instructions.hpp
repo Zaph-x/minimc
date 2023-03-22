@@ -366,7 +366,7 @@ namespace MiniMC {
       Value_ptr res;
       Value_ptr min;
       Value_ptr max;
-      std::string arguments
+      std::string arguments;
     };
     
     template <>
