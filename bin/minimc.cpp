@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
       MiniMC::Model::ConstantFactory_ptr cfac = std::make_shared<MiniMC::Model::ConstantFactory64>(tfac);
       auto loader = options.load.registrar->makeLoader  (tfac,cfac);
       MiniMC::Loaders::LoadResult loadresult = loader->loadFromFile (options.load.inputname);
-      
+
       MiniMC::Model::Controller control(*loadresult.program);
       control.boolCasts();
 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
         return -1;
       }
       transformProgram (control,options.transform);
-      
+
       if (options.outputname != "") {
         std::ofstream stream;
         stream.open(options.outputname, std::ofstream::out);
@@ -65,6 +65,7 @@ int main(int argc, char* argv[]) {
         stream.close();
       }
       if (options.command) {
+
         auto res =  static_cast<int>(options.command->getFunction()(control,options.cpa));
 
         return res;
