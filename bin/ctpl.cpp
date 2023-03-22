@@ -4,7 +4,7 @@
 #include "model/controller.hpp"
 #include "model/location.hpp"
 #include "support/feedback.hpp"
-#include "ctpl/ctl-checker.hpp"
+#include "minimc-ctl/ctl-checker.hpp"
 
 #include <boost/program_options.hpp>
 

@@ -1,1 +1,0 @@
-add_library(ctplalgorithms STATIC Binding.cpp)

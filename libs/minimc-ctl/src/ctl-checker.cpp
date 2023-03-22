@@ -1,6 +1,6 @@
-#include "ctpl/ctl-checker.hpp"
-#include "model/cfg.hpp"
+#include "minimc-ctl/ctl-checker.hpp"
 #include "host/host.hpp"
+#include "model/cfg.hpp"
 
 MiniMC::Host::ExitCodes checkSpec(MiniMC::Model::Program program){
   program;
