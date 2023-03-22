@@ -66,13 +66,13 @@ int main(int argc, char* argv[]) {
         stream.close();
       }
       if (options.command) {
-	auto res =  static_cast<int>(options.command->getFunction()(control,options.cpa));
 
-	return res;
+        auto res =  static_cast<int>(options.command->getFunction()(control,options.cpa));
+      
+        return res;
       }
 
       else {
-
         messager.message<MiniMC::Support::Severity::Error> ("No subcommand selected");
         return static_cast<int>(MiniMC::Host::ExitCodes::ConfigurationError);
       }
