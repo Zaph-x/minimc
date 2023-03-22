@@ -186,7 +186,6 @@ bin/minimc.exe
 
 external/*
 tests/code
-*.txt
 
 dependencies/smtlib
 libs/host/tests/hosttests
