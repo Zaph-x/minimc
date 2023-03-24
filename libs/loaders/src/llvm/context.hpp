@@ -249,10 +249,14 @@ namespace MiniMC {
         for (auto it = cinst->arg_begin(); it != cinst->arg_end(); ++it) {
           params.push_back(context.findValue(*it));
         }
+        auto arg = inst->getOperand(0);
         gather.template addInstr<MiniMC::Model::InstructionCode::Call>({
 	    .res = res,
 	    .function = func_ptr,
-	    .params = params});	  
+	    .params = params,
+            // Call should only ever have the 1 operand, so we assume that the 0th operand is the one.
+            // Simply exposing the called function
+            .argument = inst->getOperand(0)->getName().str()});
        }
       }
 

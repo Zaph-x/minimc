@@ -627,7 +627,9 @@ ASSUMEASSERTS
       }
       
       else if constexpr (std::is_same<StoreContent,T> ()) {
-	return {.addr = replace(t.addr), .storee = replace(t.storee)};
+	return {.addr = replace(t.addr),
+                .storee = replace(t.storee),
+                .variableName = t.variableName};
       }
 
       else if constexpr (std::is_same<RetContent,T> ()) {
@@ -639,7 +641,10 @@ ASSUMEASSERTS
 	auto inserter = std::back_inserter(params);
 	std::for_each (t.params.begin(),t.params.end(),[replace,&inserter](auto& p) {inserter = replace(p);}); 
 	
-	return {.res = replace(t.res), .function = replace(t.function), .params = params};
+	return {.res = replace(t.res),
+                .function = replace(t.function),
+                .params = params,
+                .argument = t.argument};
 
       }
 

@@ -68,8 +68,9 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
 
   MiniMC::Model::Program& prgm = *controller.getProgram();
 
-  checkSpec(prgm);
+    checkSpec(prgm);
 
+  auto main = prgm.getFunction("main");
   std::vector<std::shared_ptr<MiniMC::Model::Function>> functions = prgm.getFunctions();
 // EFFICIENCY ITSELF:
   for (const std::shared_ptr<MiniMC::Model::Function>& function: functions){
@@ -77,7 +78,7 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
        for (std::string str : registersInUse(location)){
          std::cout << str << std::endl;
        }
-
+cp
     }
     std::vector<std::shared_ptr<MiniMC::Model::Edge>> functionEdges = function->getCFA().getEdges();
     for (const std::shared_ptr<MiniMC::Model::Edge>& edge: functionEdges){
