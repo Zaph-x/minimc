@@ -2,10 +2,28 @@
 #include "host/host.hpp"
 #include "model/cfg.hpp"
 
+
+void mapGlobals(std::unordered_map<std::string, MiniMC::Model::Value_ptr> globals, MiniMC::Model::InstructionStream instStr){
+
+
+}
+
+//Should take Program and Spec datastructure(of some sort).
 MiniMC::Host::ExitCodes checkSpec(MiniMC::Model::Program program){
-  program;
 
+    //Get globals into map for easier checking the 'A' formula.
+    std::unordered_map<std::string, MiniMC::Model::Value_ptr> globals;
 
+    for (auto global : program.getInitialiser()){
+      if ( global.getOpcode() == MiniMC::Model::InstructionCode::Store){
+        auto storeContent = std::get<12>(global.getContent());
+        globals.insert({storeContent.variableName, storeContent.storee});
+      }
+    }
 
-  return MiniMC::Host::ExitCodes::AllGood;
+    auto initialMain = program.getFunction("main")->getCFA().getInitialLocation();
+
+    //Kan vi matche infoen her.
+
+    return MiniMC::Host::ExitCodes::AllGood;
 }
