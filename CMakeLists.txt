@@ -23,7 +23,6 @@ include (dependencies/xxhash.cmake)
 include (dependencies/leg-assembly-loader.cmake)
 include (dependencies/ctl-expr.cmake)
 
-
 SET (ToolName minimc)
 SET (VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 SET (VERSION_MINOR ${PROJECT_VERSION_MINOR})
