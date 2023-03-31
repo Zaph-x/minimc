@@ -3,10 +3,6 @@
 #include "model/cfg.hpp"
 
 
-void mapGlobals(std::unordered_map<std::string, MiniMC::Model::Value_ptr> globals, MiniMC::Model::InstructionStream instStr){
-
-
-}
 
 //Should take Program and Spec datastructure(of some sort).
 MiniMC::Host::ExitCodes checkSpec(MiniMC::Model::Program program){
@@ -23,7 +19,7 @@ MiniMC::Host::ExitCodes checkSpec(MiniMC::Model::Program program){
 
     auto initialMain = program.getFunction("main")->getCFA().getInitialLocation();
 
-    //Kan vi matche infoen her.
+
 
     return MiniMC::Host::ExitCodes::AllGood;
 }

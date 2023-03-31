@@ -78,7 +78,6 @@ MiniMC::Host::ExitCodes ctpl_main(MiniMC::Model::Controller& controller, const M
        for (std::string str : registersInUse(location)){
          std::cout << str << std::endl;
        }
-cp
     }
     std::vector<std::shared_ptr<MiniMC::Model::Edge>> functionEdges = function->getCFA().getEdges();
     for (const std::shared_ptr<MiniMC::Model::Edge>& edge: functionEdges){

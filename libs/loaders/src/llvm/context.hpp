@@ -249,7 +249,13 @@ namespace MiniMC {
         for (auto it = cinst->arg_begin(); it != cinst->arg_end(); ++it) {
           params.push_back(context.findValue(*it));
         }
-        auto arg = inst->getOperand(0);
+        auto arg = inst->getOperand(0)->getName().str();
+        auto numOp = inst->getNumOperands();
+        llvm::errs() << *inst << "\n";
+        for (int i = 0; i < inst->getNumOperands(); i++) {
+          auto debugName = inst->getOperand(i)->getName().str();
+          int breakpoint = 0;
+        }
         gather.template addInstr<MiniMC::Model::InstructionCode::Call>({
 	    .res = res,
 	    .function = func_ptr,
