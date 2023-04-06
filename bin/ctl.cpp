@@ -42,6 +42,62 @@ std::string exec_cmd(const char* cmd) {
     return result;
 }
 
+void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
+    // Construct SMV string
+    std::string smv;
+    std::string moduleString = "MODULE main\n";
+    std::string varString = "";
+    std::unordered_map<std::string, std::vector<std::string>> varMap;
+    // Add variables
+    for (auto instr : program.getInitialiser()) {
+
+        if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
+          auto content = get<12>(instr.getContent());
+          auto name = content.variableName;
+          if (varMap.find(name) == varMap.end()) {
+            varMap[name] = std::vector<std::string>();
+          }
+          if (content.storee->isConstant()) {
+            //auto value = std::static_pointer_cast<MiniMC::Model::TConstant>(content.storee);
+            auto value = content.storee->string_repr();
+            varMap[name].push_back(value);
+          }
+        }
+    }
+
+    for (auto func : program.getFunctions()) {
+        std::string funcName = func->getSymbol().getName();
+
+        std::string locations = "";
+        // Make module states
+        for (auto loc : func->getCFA().getLocations()) {
+          std::string locName = loc->getInfo().getName();
+          locations += locName;
+        }
+        // Add module locations
+        moduleString += "VAR " + funcName + " : {" + locations + "};\n";
+
+        // Write moduleString to output_file.smv
+    }
+
+    // Add variables to module string from int map
+    for (auto var : varMap) {
+        varString = "";
+        std::string varName = var.first;
+        std::string varValues = "";
+        for (auto value : var.second) {
+          varValues += value + ", ";
+        }
+        varString += "VAR " + varName + " : {" + varValues + "};\n";
+        moduleString += varString;
+    }
+    // Create file and write to it, if created wipe contents before writing.
+    std::ofstream output_file(fileName);
+    output_file << smv << std::endl;
+    output_file.close();
+}
+
+
 namespace {
 
   struct LocalOptions {
@@ -85,7 +141,7 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
    * */
 
   std::string filename = "output_file.smv";
-
+  writeToFile(*prg, filename);
   // check if file exists
   
   std::ifstream infile(filename);
