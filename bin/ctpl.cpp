@@ -33,7 +33,8 @@ void writeToFile(MiniMC::Model::Program& program) {
         varMap[name] = std::vector<std::string>();
       }
       if (content.storee->isConstant()) {
-        auto value = std::static_pointer_cast<MiniMC::Model::TConstant<pointer_t>>(content.storee);
+        //auto value = std::static_pointer_cast<MiniMC::Model::TConstant>(content.storee);
+        auto value = content.storee->string_repr();
         varMap[name].push_back(value);
       }
     }
