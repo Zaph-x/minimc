@@ -32,6 +32,10 @@ execute_process(COMMAND
   OUTPUT_VARIABLE GIT_HASH
   ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+execute_process(COMMAND
+  sh ./install-nusvm.sh
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
 include(package/package.cmake)
 include (package/rpath.cmake)
 
