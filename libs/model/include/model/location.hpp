@@ -64,6 +64,7 @@ namespace MiniMC {
 
       void addEdge(Edge* e) { edges.push_back(e); }
       void addIncomingEdge(Edge* e) { incomingEdges.push_back(e); }
+      std::vector<Edge*> getIncomingEdges() const { return incomingEdges; }
       /** 
        *
        * @return begin iterator for outgoing edges

@@ -119,7 +119,8 @@ namespace MiniMC {
       else if constexpr (MiniMC::Model::InstructionCode::Store == code) {
 	gather.template addInstr<MiniMC::Model::InstructionCode::Store>({
 	    .addr = context.findValue (inst->getOperand(1)),
-	    .storee = context.findValue (inst->getOperand (0))
+	    .storee = context.findValue (inst->getOperand (0)),
+            .variableName = inst->getOperand(1)->getName().str()
 	  });
       }
 
@@ -249,8 +250,6 @@ namespace MiniMC {
         for (auto it = cinst->arg_begin(); it != cinst->arg_end(); ++it) {
           params.push_back(context.findValue(*it));
         }
-        auto arg = inst->getOperand(0)->getName().str();
-        llvm::errs() << *inst << "\n";
         gather.template addInstr<MiniMC::Model::InstructionCode::Call>({
 	    .res = res,
 	    .function = func_ptr,

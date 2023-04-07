@@ -42,61 +42,114 @@ std::string exec_cmd(const char* cmd) {
     return result;
 }
 
+// Adds variable values to the varMap for StoreInstructions
+void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<std::string, std::vector<std::string>> &varMap){
+    if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
+        auto content = get<12>(instr.getContent());
+        auto name = content.variableName;
+        if (varMap.find(name) == varMap.end()) {
+          varMap[name] = std::vector<std::string>();
+        }
+        if (content.storee->isConstant()) {
+          auto value = std::dynamic_pointer_cast<MiniMC::Model::Constant>(content.storee);
+
+          // NuSMV does not support i64, but does allow bitvectors of arbitrary size(words) so only i32 and i16 is supported at the moment.
+          if (value->isInteger()) {
+            std::size_t valueSize = value->getSize();
+
+            if (valueSize == 4) { // We have an integer
+              auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV32>>(value)->getValue();
+              varMap[name].push_back(std::to_string(storeeValue));
+            } else if (valueSize == 2) { // We have a short;
+              auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV16>>(value)->getValue();
+              varMap[name].push_back(std::to_string(storeeValue));
+            }
+
+          } else if (value->isBool()) {
+            if (varMap[name].empty()) {
+              varMap[name].emplace_back("boolean");
+            }
+          }
+        }
+    }
+}
+
 void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
     // Construct SMV string
-    std::string smv;
-    std::string moduleString = "MODULE main\n";
-    std::string varString = "";
+    std::string smv = "";
+    smv += "MODULE main\n";
+    std::string varString;
     std::unordered_map<std::string, std::vector<std::string>> varMap;
-    // Add variables
-    for (auto instr : program.getInitialiser()) {
+    std::unordered_map<std::string, std::string> initMap;
+    std::unordered_map<std::string, std::vector<std::string>> nextMap;
+    //First basic block of main is always init state
+    initMap["locations"] = "ASSIGN init(locations) := main-bb0;\n";
 
-        if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
-          auto content = get<12>(instr.getContent());
-          auto name = content.variableName;
-          if (varMap.find(name) == varMap.end()) {
-            varMap[name] = std::vector<std::string>();
-          }
-          if (content.storee->isConstant()) {
-            //auto value = std::static_pointer_cast<MiniMC::Model::TConstant>(content.storee);
-            auto value = content.storee->string_repr();
-            varMap[name].push_back(value);
-          }
-        }
+    //Handle globals
+    for (const auto& instr : program.getInitialiser()) {
+        storeVarValue(instr, varMap);
     }
 
-    for (auto func : program.getFunctions()) {
+    for (auto var: varMap) {
+        initMap[var.first] = "ASSIGN init(" + var.first + ") := " + var.second[0] + ";\n";
+    }
+
+
+    std::string locations = "";
+    for (const auto& func : program.getFunctions()) {
         std::string funcName = func->getSymbol().getName();
 
-        std::string locations = "";
-        // Make module states
+         // Make module states
         for (auto loc : func->getCFA().getLocations()) {
-          std::string locName = loc->getInfo().getName();
-          locations += locName;
+          std::string locName = std::to_string(loc->getID());
+
+          std::string currentLocation = funcName+"-bb"+locName;
+          locations += currentLocation + ", ";
+
+          if (loc->nbIncomingEdges() > 0){
+            for (auto edge : loc->getIncomingEdges()) {
+              // Iterate through instructions on each edge
+              for (auto instr: edge->getInstructions()){
+                storeVarValue(instr, varMap);
+              }
+            }
+          } else {
+
+          }
+          // Next Facit:
+
+
         }
-        // Add module locations
-        moduleString += "VAR " + funcName + " : {" + locations + "};\n";
+        // Remove trailing comma and write as VAR string.
 
-        // Write moduleString to output_file.smv
     }
+    locations = locations.substr(0, locations.size()-2);
+    smv += "VAR locations: {" + locations + "};\n";
 
-    // Add variables to module string from int map
-    for (auto var : varMap) {
+    // Add variables to module string from varMap
+    for (const auto& var : varMap) {
         varString = "";
         std::string varName = var.first;
         std::string varValues = "";
         for (auto value : var.second) {
           varValues += value + ", ";
         }
+        varValues = varValues.substr(0, varValues.size()-2);
         varString += "VAR " + varName + " : {" + varValues + "};\n";
-        moduleString += varString;
+        smv += varString;
     }
+    //Add init values
+      for (const auto& init : initMap) {
+              smv += init.second;
+      }
+
+
+
     // Create file and write to it, if created wipe contents before writing.
     std::ofstream output_file(fileName);
     output_file << smv << std::endl;
     output_file.close();
 }
-
 
 namespace {
 
