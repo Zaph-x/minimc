@@ -116,11 +116,18 @@ void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
           } else {
 
           }
-          // Next Facit:
-
-
+          // Next values (Based on assign.mmc): Content of a basic block is edge instr + to location of edge.
+          // Main 0 -> Main 2 -> Call Assign2 0 -> Assign2 1 -> Main 3 -> Main 4 ->
+          // Call Assign4 0 -> Assign4 1 -> Main 5 -> Main 6 -> Call Assign8 0 -> Assign8 1 ->
+          // Main 7 -> Main 1(Has return instruction)
+/* CFA -> Edge
+    BB2(from)  {main:bb}
+    [
+     Call <F(0+0) Pointer> <main:__minimc.sp Pointer>(Content of instructionStream)
+     ->BB3(to)
+    ]
+ * */
         }
-        // Remove trailing comma and write as VAR string.
 
     }
     locations = locations.substr(0, locations.size()-2);
