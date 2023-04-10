@@ -94,18 +94,25 @@ void setup_variables(const MiniMC::Model::Program program, std::unordered_map<st
     }
 }
 
-void write_locations(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv) {
+void write_locations(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations) {
   std::string locations = "";
     for (const auto& func : program.getFunctions()) {
         std::string funcName = func->getSymbol().getName();
 
          // Make module states
-        for (auto loc : func->getCFA().getLocations()) {
-          std::string locName = std::to_string(loc->getID());
+        known_locations.push_back(funcName+"-bb0");
+        locations += funcName+"-bb0, ";
+        for (auto loc : func->getCFA().getEdges()) {
+          std::string locName = std::to_string(loc->getTo()->getID());
 
           std::string currentLocation = funcName+"-bb"+locName;
+          known_locations.push_back(currentLocation);
           locations += currentLocation + ", ";
-
+        }
+    }
+    for (const auto& func : program.getFunctions()) {
+        std::string funcName = func->getSymbol().getName();
+        for (auto loc : func->getCFA().getLocations()) {
           if (loc->nbIncomingEdges() > 0){
             for (auto edge : loc->getIncomingEdges()) {
               // Iterate through instructions on each edge
@@ -113,22 +120,7 @@ void write_locations(MiniMC::Model::Program program, std::unordered_map<std::str
                 storeVarValue(instr, varMap);
               }
             }
-          } else {
-
-          }
-          // Next values (Based on assign.mmc): Content of a basic block is edge instr + to location of edge.
-          // Main 0 -> Main 2 -> Call Assign2 0 -> Assign2 1 -> Main 3 -> Main 4 ->
-          // Call Assign4 0 -> Assign4 1 -> Main 5 -> Main 6 -> Call Assign8 0 -> Assign8 1 ->
-          // Main 7 -> Main 1(Has return instruction)
-/* CFA -> Edge
-    BB2(from)  {main:bb}
-    [
-     Call <F(0+0) Pointer> <main:__minimc.sp Pointer>(Content of instructionStream)
-     ->BB3(to)
-    ]
- * */
-        }
-
+          }         }
     }
 
     locations = locations.substr(0, locations.size()-2);
@@ -153,7 +145,7 @@ void write_init(std::unordered_map<std::string, std::string> initMap, std::strin
     }
 }
 
-void write_function_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, MiniMC::Model::Function_ptr function, std::string &smv, unsigned int return_point, std::string prev_func_name) {
+void write_function_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, MiniMC::Model::Function_ptr function, std::string &smv, unsigned int return_point, std::string prev_func_name, std::vector<std::string> &known_locations) {
   std::string return_name = prev_func_name + "-bb" + std::to_string(return_point);
   // remove newline and whitespaces from ends
   return_name = boost::trim_copy(return_name);
@@ -165,59 +157,49 @@ void write_function_case(MiniMC::Model::Program program, std::unordered_map<std:
     std::string loc_name = std::to_string(loc->getID());
     std::string currentLocation = full_name + loc_name;
     std::cout << "Current location: " << currentLocation << std::endl;
-    if (loc->nbOutgoingEdges() > 0) {
+    if (loc->nbIncomingEdges() > 0) {
       std::cout << "    has edges" << std::endl;
-      for (auto edge : loc->getOutgoingEdges()) {
+      for (auto edge : loc->getIncomingEdges()) {
         if (!edge->getInstructions().empty()) {
           std::cout << "    has instructions" << std::endl;
-          std::string tmp = "    locations = " + currentLocation + " : ";
+          std::string tmp = "    locations = ";
           for (auto instr : edge->getInstructions()) {
             std::cout << "    has instruction: " << instr << std::endl;
+            std::string toLocName = std::to_string(edge->getFrom()->getID());
             if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
 
               auto call = get<14>(instr.getContent());
               auto func_ptr = program.getFunction(call.argument);
-              auto new_ret_point = loc->getID() + 1;
 
-              function_case += "    locations = " + currentLocation + " : " + call.argument + "-bb0;\n";
+              function_case += "    locations = " + full_name + toLocName + " : " + call.argument + "-bb0;\n";
 
-              callMap[call.argument] = std::to_string(new_ret_point);
-            }
-            if (instr.getOpcode() == MiniMC::Model::InstructionCode::RetVoid) {
+              callMap[call.argument] = std::to_string(loc->getID());
               tmp = "";
+              goto breakout;
             }
-            else if (instr.getOpcode() == MiniMC::Model::InstructionCode::Ret) {
-              tmp = "";
-            } else if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
-              std::string toLocName = std::to_string(edge->getTo()->getID());
-              tmp += full_name + toLocName + ";\n";
-            } else {
-              std::cout << "Instruction: " << instr.getOpcode() << std::endl;
-              std::string toLocName = std::to_string(edge->getTo()->getID());
-              tmp += full_name + toLocName + ";\n";
-            }
+            
+            function_case += "    locations = " + full_name + toLocName + " : " + currentLocation + ";\n";
           }
-          function_case += tmp;
         } else {
-          std::string toLocName = std::to_string(edge->getTo()->getID());
-          function_case += "    locations = " + currentLocation + " : " + full_name + toLocName + ";\n";
+          std::string toLocName = std::to_string(edge->getFrom()->getID());
+          function_case += "    locations = " + full_name + toLocName + " : " + currentLocation + ";\n";
         }
+breakout:;
       }
     } else {
-      if (return_name != "main-bb0") {
+      if (currentLocation != return_name)
         function_case += "    locations = " + currentLocation + " : " + return_name + ";\n";
-      }
     }
 
   }
   smv += function_case;
   for (auto call : callMap) {
-    write_function_case(program, varMap, program.getFunction(call.first), smv, std::stoi(call.second), name);
+    write_function_case(program, varMap, program.getFunction(call.first), smv, std::stoi(call.second), name, known_locations);
   }
 
 }
 
-void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv) {
+void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations) {
   std::unordered_map<std::string, std::string> call_stack_map;
   smv += "ASSIGN next(locations) :=\n";
   smv += "  case\n";
@@ -225,7 +207,7 @@ void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, 
   
   for (auto i = program.getFunctions().size()-1; i > 0; --i) {
     function = program.getFunctions().at(i);
-    write_function_case(program, varMap, function, smv, 0, "main");
+    write_function_case(program, varMap, function, smv, 0, "main", known_locations);
   }
   smv += "  esac;\n";
 
@@ -308,26 +290,14 @@ void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
     std::unordered_map<std::string, std::vector<std::string>> nextMap;
     std::unordered_map<std::string, std::string> initMap;
     std::unordered_map<std::string, std::vector<std::string>> varMap;
+    std::vector<std::string> known_locations;
     write_module("main", smv);
-    
-
-    
-
-
-    
 
     setup_variables(program, varMap, initMap, smv);
-    write_locations(program, varMap, smv);
+    write_locations(program, varMap, smv, known_locations);
     write_variables(program, varMap, smv);
     write_init(initMap, smv);
-    write_next(program, varMap, smv);
-
-    
-    //Add init values
-    
-
-
-
+    write_next(program, varMap, smv, known_locations);
     // Create file and write to it, if created wipe contents before writing.
     std::ofstream output_file(fileName);
     output_file << smv << std::endl;
