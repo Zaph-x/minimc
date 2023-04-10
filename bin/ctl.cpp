@@ -6,8 +6,10 @@
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
+#include <boost/algorithm/string.hpp>
 #include <string>
 #include <array>
+#include <regex.h>
 #include "ctl-parser.hpp"
 #include "ctl-scanner.hpp"
 
@@ -69,33 +71,31 @@ void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<s
             if (varMap[name].empty()) {
               varMap[name].emplace_back("boolean");
             }
+          } else {
+            std::cout << "Unsupported constant type " << value->getType()->get_type_name() << std::endl;
+            varMap.erase(name);
           }
         }
     }
 }
 
-void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
-    // Construct SMV string
-    std::string smv = "";
-    smv += "MODULE main\n";
-    std::string varString;
-    std::unordered_map<std::string, std::vector<std::string>> varMap;
-    std::unordered_map<std::string, std::string> initMap;
-    std::unordered_map<std::string, std::vector<std::string>> nextMap;
-    //First basic block of main is always init state
-    initMap["locations"] = "ASSIGN init(locations) := main-bb0;\n";
+void write_module(std::string module_name, std::string& smv) {
+    smv += "MODULE " + module_name + "\n";
+}
 
-    //Handle globals
+void setup_variables(const MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::unordered_map<std::string, std::string> &initMap, std::string& smv) {
+    // Write variables
+    initMap["locations"] = "ASSIGN init(locations) := main-bb0;\n";
     for (const auto& instr : program.getInitialiser()) {
         storeVarValue(instr, varMap);
     }
-
     for (auto var: varMap) {
-        initMap[var.first] = "ASSIGN init(" + var.first + ") := " + var.second[0] + ";\n";
+      initMap[var.first] = "ASSIGN init(" + var.first + ") := " + var.second[0] + ";\n";
     }
+}
 
-
-    std::string locations = "";
+void write_locations(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv) {
+  std::string locations = "";
     for (const auto& func : program.getFunctions()) {
         std::string funcName = func->getSymbol().getName();
 
@@ -130,25 +130,201 @@ void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
         }
 
     }
+
     locations = locations.substr(0, locations.size()-2);
     smv += "VAR locations: {" + locations + "};\n";
+}
 
-    // Add variables to module string from varMap
-    for (const auto& var : varMap) {
-        varString = "";
-        std::string varName = var.first;
-        std::string varValues = "";
-        for (auto value : var.second) {
-          varValues += value + ", ";
-        }
-        varValues = varValues.substr(0, varValues.size()-2);
-        varString += "VAR " + varName + " : {" + varValues + "};\n";
-        smv += varString;
+void write_variables(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv) {
+   for (const auto& var : varMap) {
+       std::string varName = var.first;
+       std::string varValues = "";
+       for (auto value : var.second) {
+         varValues += value + ", ";
+       }
+       varValues = varValues.substr(0, varValues.size()-2);
+       smv += "VAR " + varName + " : {" + varValues + "};\n";
+   }
+}
+
+void write_init(std::unordered_map<std::string, std::string> initMap, std::string &smv) {
+  for (const auto& init : initMap) {
+      smv += init.second;
     }
-    //Add init values
-      for (const auto& init : initMap) {
-              smv += init.second;
+}
+
+void write_function_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, MiniMC::Model::Function_ptr function, std::string &smv, unsigned int return_point, std::string prev_func_name) {
+  std::string return_name = prev_func_name + "-bb" + std::to_string(return_point);
+  // remove newline and whitespaces from ends
+  return_name = boost::trim_copy(return_name);
+  std::string function_case = "";
+  std::string name = function->getSymbol().getName();
+  std::unordered_map<std::string, std::string> callMap;
+  std::string full_name = name + "-bb";
+  for (const auto &loc : function->getCFA().getLocations()) {
+    std::string loc_name = std::to_string(loc->getID());
+    std::string currentLocation = full_name + loc_name;
+    std::cout << "Current location: " << currentLocation << std::endl;
+    if (loc->nbOutgoingEdges() > 0) {
+      std::cout << "    has edges" << std::endl;
+      for (auto edge : loc->getOutgoingEdges()) {
+        if (!edge->getInstructions().empty()) {
+          std::cout << "    has instructions" << std::endl;
+          std::string tmp = "    locations = " + currentLocation + " : ";
+          for (auto instr : edge->getInstructions()) {
+            std::cout << "    has instruction: " << instr << std::endl;
+            if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
+
+              auto call = get<14>(instr.getContent());
+              auto func_ptr = program.getFunction(call.argument);
+              auto new_ret_point = loc->getID() + 1;
+
+              function_case += "    locations = " + currentLocation + " : " + call.argument + "-bb0;\n";
+
+              callMap[call.argument] = std::to_string(new_ret_point);
+            }
+            if (instr.getOpcode() == MiniMC::Model::InstructionCode::RetVoid) {
+              tmp = "";
+            }
+            else if (instr.getOpcode() == MiniMC::Model::InstructionCode::Ret) {
+              tmp = "";
+            } else if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
+              std::string toLocName = std::to_string(edge->getTo()->getID());
+              tmp += full_name + toLocName + ";\n";
+            } else {
+              std::cout << "Instruction: " << instr.getOpcode() << std::endl;
+              std::string toLocName = std::to_string(edge->getTo()->getID());
+              tmp += full_name + toLocName + ";\n";
+            }
+          }
+          function_case += tmp;
+        } else {
+          std::string toLocName = std::to_string(edge->getTo()->getID());
+          function_case += "    locations = " + currentLocation + " : " + full_name + toLocName + ";\n";
+        }
       }
+    } else {
+      if (return_name != "main-bb0") {
+        function_case += "    locations = " + currentLocation + " : " + return_name + ";\n";
+      }
+    }
+
+  }
+  smv += function_case;
+  for (auto call : callMap) {
+    write_function_case(program, varMap, program.getFunction(call.first), smv, std::stoi(call.second), name);
+  }
+
+}
+
+void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv) {
+  std::unordered_map<std::string, std::string> call_stack_map;
+  smv += "ASSIGN next(locations) :=\n";
+  smv += "  case\n";
+  MiniMC::Model::Function_ptr function = program.getFunctions().back(); // get main
+  
+  for (auto i = program.getFunctions().size()-1; i > 0; --i) {
+    function = program.getFunctions().at(i);
+    write_function_case(program, varMap, function, smv, 0, "main");
+  }
+  smv += "  esac;\n";
+
+  // for (auto it = program.getFunctions().rbegin(); it != program.getFunctions().rend(); ++it) {
+  //   auto func = it->get();
+  //   for (const auto &loc : func->getCFA().getLocations()) {
+  //     std::string locName = std::to_string(loc->getID());
+  //     std::string currentLocation = func->getSymbol().getName() + "-bb" + locName;
+  //     smv += "    locations = " + currentLocation + " : ";
+  //     if (loc->nbOutgoingEdges() > 0) {
+  //       for (auto edge : loc->getOutgoingEdges()) {
+  //         for (auto instr: edge->getInstructions()){
+  //           if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
+  //             auto call = get<14>(instr.getContent());
+  //             auto function = call.function;
+  //             auto funcName = program.getFunction(call.argument)->getSymbol().getName();
+  //             call_stack_map[funcName] = std::to_string(std::stoi(locName) + 1);
+  //             
+  //             smv += funcName + "-bb0;\n";
+  //             smv += "    locations = " + currentLocation + " : ";
+  //           }
+  //         }
+  //         std::string toLocName = std::to_string(edge->getTo()->getID());
+  //         std::string toLocation = func->getSymbol().getName() + "-bb" + toLocName;
+  //         smv += toLocation + ";\n";
+  //       }
+  //     } else {
+  //       smv += "main-bb0"";\n";
+  //     }
+  //   }
+
+  // }
+  
+  for (const auto& var : varMap) {
+    std::string varName = var.first;
+    smv += "ASSIGN next(" + varName + ") :=\n";
+    smv += "  case\n";
+    for (const auto &func : program.getFunctions()) {
+      for (const auto &loc : func->getCFA().getLocations()) {
+        std::string locName = std::to_string(loc->getID());
+        std::string currentLocation = func->getSymbol().getName() + "-bb" + locName;
+        smv += "     " + var.first + " = " + var.second[0] + " & (locations = " + currentLocation + ") : ";
+        if (loc->nbOutgoingEdges() > 0) {
+          for (auto edge : loc->getOutgoingEdges()) {
+            // Iterate through instructions on each edge
+            for (auto instr: edge->getInstructions()){
+              if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
+                auto content = get<12>(instr.getContent());
+                if (content.storee->isConstant()) {
+                  auto value = std::dynamic_pointer_cast<MiniMC::Model::Constant>(content.storee);
+
+                  if (value->isInteger()) {
+                    std::size_t size = value->getSize();
+                    if (size == 4) {
+                      auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV32>>(value)->getValue();
+                      smv += std::to_string(storeeValue) + ";\n";
+                    } else if (size == 8) {
+                      auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV64>>(value)->getValue();
+                      smv += std::to_string(storeeValue) + ";\n";
+                    } else {
+                      std::cout << "Unsupported size: " << size << std::endl;
+                    }
+                  }
+                }
+              }
+            }
+breakout:;
+          }  
+        }
+      }
+      smv += "  esac;\n";
+    }
+  }
+}
+
+void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
+    // Construct SMV string
+    std::string smv = "";
+    std::string varString;
+    std::unordered_map<std::string, std::vector<std::string>> nextMap;
+    std::unordered_map<std::string, std::string> initMap;
+    std::unordered_map<std::string, std::vector<std::string>> varMap;
+    write_module("main", smv);
+    
+
+    
+
+
+    
+
+    setup_variables(program, varMap, initMap, smv);
+    write_locations(program, varMap, smv);
+    write_variables(program, varMap, smv);
+    write_init(initMap, smv);
+    write_next(program, varMap, smv);
+
+    
+    //Add init values
+    
 
 
 

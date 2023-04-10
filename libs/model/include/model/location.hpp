@@ -102,6 +102,10 @@ namespace MiniMC {
         return edges.size();
       }
 
+      auto getOutgoingEdges() const {
+        return edges;
+      }
+
       MiniMC::Hash::hash_t hash () const {
 	return getID ();
       }
