@@ -79,6 +79,7 @@ void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<s
     }
 }
 
+
 void write_module(std::string module_name, std::string& smv) {
     smv += "MODULE " + module_name + "\n";
 }
@@ -145,58 +146,116 @@ void write_init(std::unordered_map<std::string, std::string> initMap, std::strin
     }
 }
 
-void write_function_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, MiniMC::Model::Function_ptr function, std::string &smv, unsigned int return_point, std::string prev_func_name, std::vector<std::string> &known_locations) {
-  std::string return_name = prev_func_name + "-bb" + std::to_string(return_point);
-  // remove newline and whitespaces from ends
-  return_name = boost::trim_copy(return_name);
-  std::string function_case = "";
-  std::string name = function->getSymbol().getName();
-  std::unordered_map<std::string, std::string> callMap;
-  std::string full_name = name + "-bb";
-  for (const auto &loc : function->getCFA().getLocations()) {
-    std::string loc_name = std::to_string(loc->getID());
-    std::string currentLocation = full_name + loc_name;
-    std::cout << "Current location: " << currentLocation << std::endl;
-    if (loc->nbIncomingEdges() > 0) {
-      std::cout << "    has edges" << std::endl;
-      for (auto edge : loc->getIncomingEdges()) {
-        if (!edge->getInstructions().empty()) {
-          std::cout << "    has instructions" << std::endl;
-          std::string tmp = "    locations = ";
-          for (auto instr : edge->getInstructions()) {
-            std::cout << "    has instruction: " << instr << std::endl;
-            std::string toLocName = std::to_string(edge->getFrom()->getID());
-            if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
-
-              auto call = get<14>(instr.getContent());
-              auto func_ptr = program.getFunction(call.argument);
-
-              function_case += "    locations = " + full_name + toLocName + " : " + call.argument + "-bb0;\n";
-
-              callMap[call.argument] = std::to_string(loc->getID());
-              tmp = "";
-              goto breakout;
-            }
-            
-            function_case += "    locations = " + full_name + toLocName + " : " + currentLocation + ";\n";
-          }
-        } else {
-          std::string toLocName = std::to_string(edge->getFrom()->getID());
-          function_case += "    locations = " + full_name + toLocName + " : " + currentLocation + ";\n";
+void store_transitions(MiniMC::Model::Program program, MiniMC::Model::Function_ptr function, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations, std::unordered_map<std::string, std::vector<std::string>> &transition_map) {
+  
+  for (auto &edge : function->getCFA().getEdges()) {
+    std::string from = std::to_string(edge->getFrom()->getID());
+    std::string to = std::to_string(edge->getTo()->getID());
+    std::string currentLocation = function->getSymbol().getName()+"-bb"+from;
+    std::string nextLocation = function->getSymbol().getName()+"-bb"+to;
+    std::string next_stored = nextLocation;
+    for (auto &instr : edge->getInstructions()) {
+      if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
+        auto call_instr = get<14>(instr.getContent());
+        std::string func_name = call_instr.argument;
+        nextLocation = func_name+"-bb0";
+        if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
+          nextLocation = "error";
         }
-breakout:;
+        transition_map[currentLocation].push_back(next_stored);
+        auto edge_count = program.getFunction(func_name)->getCFA().getEdges().size();
+        transition_map[func_name + "-bb" + std::to_string(edge_count)].push_back(next_stored);
       }
-    } else {
-      if (currentLocation != return_name)
-        function_case += "    locations = " + currentLocation + " : " + return_name + ";\n";
     }
-
+    if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
+      nextLocation = "error";
+    }
+    transition_map[currentLocation].push_back(nextLocation);
   }
-  smv += function_case;
-  for (auto call : callMap) {
-    write_function_case(program, varMap, program.getFunction(call.first), smv, std::stoi(call.second), name, known_locations);
+}
+
+
+void write_function_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, MiniMC::Model::Function_ptr function, std::string &smv, std::vector<std::string> &known_locations) {
+  std::unordered_map<std::string, std::vector<std::string>> transitions;
+
+  store_transitions(program, function, varMap, smv, known_locations, transitions);
+
+  for (auto kv : transitions) {
+    std::string transition = "{";
+    for (auto next : kv.second) {
+      transition += next + ", ";
+    }
+    transition = transition.substr(0, transition.size()-2);
+    transition += "}";
+    smv += "    locations = " + kv.first + " : " + transition + ";\n";
   }
 
+//  std::string function_case = "";
+//  std::string nextLocation = "";
+//  for (auto &edge : function->getCFA().getEdges()) {
+//    std::string from = std::to_string(edge->getFrom()->getID());
+//    std::string to = std::to_string(edge->getTo()->getID());
+//    std::string currentLocation = function->getSymbol().getName()+"-bb"+from;
+//    nextLocation = function->getSymbol().getName()+"-bb"+to;
+//    std::string next_stored = nextLocation;
+//    for (auto &instr : edge->getInstructions()) {
+//      if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
+//        auto call_instr = get<14>(instr.getContent());
+//        std::string func_name = call_instr.argument;
+//        nextLocation = func_name+"-bb0";
+//        if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
+//          nextLocation = "error";
+//        }
+//        auto edge_count = program.getFunction(func_name)->getCFA().getEdges().size();
+//        function_case += "    locations = " + func_name + "-bb" + std::to_string(edge_count) + " : " + next_stored + ";\n";
+//      }
+//    }
+//    if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
+//      nextLocation = "error";
+//    }
+//    function_case += "    locations = " + currentLocation + " : " + nextLocation + ";\n";
+//  }
+//  function_case += "    locations = " + nextLocation + " : " + nextLocation + ";\n";
+//  smv += function_case;
+}
+
+void write_assignment_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations, std::string var_name) {
+    // TODO Iterate vars, assign if var name matches. Fix all next cases
+    std::string assignment_case = "";
+    for (const auto& func : program.getFunctions()) {
+      std::string funcName = func->getSymbol().getName();
+      for (auto loc : func->getCFA().getLocations()) {
+        if (loc->nbIncomingEdges() > 0){
+          for (auto edge : loc->getIncomingEdges()) {
+            // Iterate through instructions on each edge
+            for (auto instr: edge->getInstructions()){
+              if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
+                auto assign_instr = get<12>(instr.getContent());
+                std::string varName = assign_instr.variableName;
+                std::string value;
+                if (assign_instr.storee->isConstant()) {
+                  auto const_instr = std::dynamic_pointer_cast<MiniMC::Model::Constant>(assign_instr.storee);
+                  size_t size = const_instr->getSize();
+                  if (size == 1) {
+                    value = std::to_string(std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV8>>(assign_instr.storee)->getValue());
+                  } else if (size == 2) {
+                    value = std::to_string(std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV16>>(assign_instr.storee)->getValue());
+                  } else if (size == 4) {
+                    value = std::to_string(std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV32>>(assign_instr.storee)->getValue());
+                  } else if (size == 8) {
+                    value = std::to_string(std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV64>>(assign_instr.storee)->getValue());
+                  }
+
+
+                }
+                assignment_case += "    (locations = " + funcName + "-bb" + std::to_string(loc->getID()) + ") : " + value + ";\n";
+              }
+            }
+          }
+        }
+    }
+  }
+  smv += assignment_case + "    TRUE : " + var_name + ";\n";
 }
 
 void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations) {
@@ -205,81 +264,19 @@ void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, 
   smv += "  case\n";
   MiniMC::Model::Function_ptr function = program.getFunctions().back(); // get main
   
-  for (auto i = program.getFunctions().size()-1; i > 0; --i) {
-    function = program.getFunctions().at(i);
-    write_function_case(program, varMap, function, smv, 0, "main", known_locations);
-  }
-  smv += "  esac;\n";
-
-  // for (auto it = program.getFunctions().rbegin(); it != program.getFunctions().rend(); ++it) {
-  //   auto func = it->get();
-  //   for (const auto &loc : func->getCFA().getLocations()) {
-  //     std::string locName = std::to_string(loc->getID());
-  //     std::string currentLocation = func->getSymbol().getName() + "-bb" + locName;
-  //     smv += "    locations = " + currentLocation + " : ";
-  //     if (loc->nbOutgoingEdges() > 0) {
-  //       for (auto edge : loc->getOutgoingEdges()) {
-  //         for (auto instr: edge->getInstructions()){
-  //           if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
-  //             auto call = get<14>(instr.getContent());
-  //             auto function = call.function;
-  //             auto funcName = program.getFunction(call.argument)->getSymbol().getName();
-  //             call_stack_map[funcName] = std::to_string(std::stoi(locName) + 1);
-  //             
-  //             smv += funcName + "-bb0;\n";
-  //             smv += "    locations = " + currentLocation + " : ";
-  //           }
-  //         }
-  //         std::string toLocName = std::to_string(edge->getTo()->getID());
-  //         std::string toLocation = func->getSymbol().getName() + "-bb" + toLocName;
-  //         smv += toLocation + ";\n";
-  //       }
-  //     } else {
-  //       smv += "main-bb0"";\n";
-  //     }
-  //   }
-
-  // }
   
+  for (const auto &func : program.getFunctions()) {
+    write_function_case(program, varMap, func, smv, known_locations);
+  }
+  smv += "    TRUE : locations;\n";
+  smv += "  esac;\n";
+ 
   for (const auto& var : varMap) {
     std::string varName = var.first;
     smv += "ASSIGN next(" + varName + ") :=\n";
     smv += "  case\n";
-    for (const auto &func : program.getFunctions()) {
-      for (const auto &loc : func->getCFA().getLocations()) {
-        std::string locName = std::to_string(loc->getID());
-        std::string currentLocation = func->getSymbol().getName() + "-bb" + locName;
-        smv += "     " + var.first + " = " + var.second[0] + " & (locations = " + currentLocation + ") : ";
-        if (loc->nbOutgoingEdges() > 0) {
-          for (auto edge : loc->getOutgoingEdges()) {
-            // Iterate through instructions on each edge
-            for (auto instr: edge->getInstructions()){
-              if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
-                auto content = get<12>(instr.getContent());
-                if (content.storee->isConstant()) {
-                  auto value = std::dynamic_pointer_cast<MiniMC::Model::Constant>(content.storee);
-
-                  if (value->isInteger()) {
-                    std::size_t size = value->getSize();
-                    if (size == 4) {
-                      auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV32>>(value)->getValue();
-                      smv += std::to_string(storeeValue) + ";\n";
-                    } else if (size == 8) {
-                      auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::BV64>>(value)->getValue();
-                      smv += std::to_string(storeeValue) + ";\n";
-                    } else {
-                      std::cout << "Unsupported size: " << size << std::endl;
-                    }
-                  }
-                }
-              }
-            }
-breakout:;
-          }  
-        }
-      }
-      smv += "  esac;\n";
-    }
+    write_assignment_case(program, varMap, smv, known_locations, var.first);
+    smv += "  esac;\n";
   }
 }
 
