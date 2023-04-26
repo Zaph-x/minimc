@@ -44,6 +44,16 @@ std::string exec_cmd(const char* cmd) {
     return result;
 }
 
+void functionRegisters(const MiniMC::Model::Function_ptr& function){
+    auto functionRegs = function->getRegisterDescr().getRegisters();
+    std::cout << "Function: " << function->getSymbol().getName() << std::endl;
+
+    std::cout << "Registers: " << std::endl;
+    for (auto& reg : functionRegs) {
+        std::cout << "\t" << reg->getName() << std::endl;
+    }
+}
+
 // Adds variable values to the varMap for StoreInstructions
 void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<std::string, std::vector<std::string>> &varMap){
     if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
@@ -339,6 +349,8 @@ namespace {
 MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::CPA::AnalysisBuilder& cpa) {
   MiniMC::Support::Messager messager{};
   auto& prg = ctrl.getProgram();
+
+  functionRegisters(prg->getFunction("main"));
   messager.message("CTL analysis initialised");
 
   /*
