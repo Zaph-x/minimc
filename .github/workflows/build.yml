@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: uncachable
-      run: apt install -y bison
+      run: apt update -y && apt install -y bison
     - uses: awalsh128/cache-apt-pkgs-action@latest
       with:
         packages: libtinfo-dev zlib1g-dev git g++-12 cmake libboost-dev libboost-program-options-dev cvc4 libcvc4-dev libcln-dev zip flex
