@@ -15,6 +15,10 @@
 
 namespace po = boost::program_options;
 
+struct registerStruct{
+  std::string destinationRegister, opcode, content;
+};
+
 auto parse_query(const std::string& s) -> std::vector<ctl::syntax_tree_t> {
     /*
      * This function is taken from the ctl-expr project example code
@@ -44,13 +48,22 @@ std::string exec_cmd(const char* cmd) {
     return result;
 }
 
-void functionRegisters(const MiniMC::Model::Function_ptr& function){
-    auto functionRegs = function->getRegisterDescr().getRegisters();
-    std::cout << "Function: " << function->getSymbol().getName() << std::endl;
+void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers){
 
-    std::cout << "Registers: " << std::endl;
-    for (auto& reg : functionRegs) {
-        std::cout << "\t" << reg->getName() << std::endl;
+    for (const auto& location: func->getCFA().getLocations()){
+      if (location->nbIncomingEdges() == 1){
+        auto instrStream = location->getIncomingEdges()[0]->getInstructions();
+        for (auto& instr: instrStream){
+
+
+          auto ops = instr.getOpcode();
+          auto content = instr.getContent();
+          int a = 1+1;
+
+          auto test = get<MiniMC::Model::TACContent>(content);
+          int breakpoint = 2;
+        }
+      }
     }
 }
 
@@ -349,8 +362,11 @@ namespace {
 MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::CPA::AnalysisBuilder& cpa) {
   MiniMC::Support::Messager messager{};
   auto& prg = ctrl.getProgram();
+  std::vector<registerStruct> registers;
 
-  functionRegisters(prg->getFunction("main"));
+  for (const MiniMC::Model::Function_ptr& func: prg->getFunctions()){
+    functionRegisters(func, registers);
+  }
   messager.message("CTL analysis initialised");
 
   /*
