@@ -12,7 +12,7 @@
 #include <regex.h>
 #include "ctl-parser.hpp"
 #include "ctl-scanner.hpp"
-
+#define MMCM MiniMC::Model
 namespace po = boost::program_options;
 
 struct registerStruct{
@@ -54,14 +54,33 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
       if (location->nbIncomingEdges() == 1){
         auto instrStream = location->getIncomingEdges()[0]->getInstructions();
         for (auto& instr: instrStream){
-
-
-          auto ops = instr.getOpcode();
-          auto content = instr.getContent();
-          int a = 1+1;
-
-          auto test = get<MiniMC::Model::TACContent>(content);
-          int breakpoint = 2;
+          // TACContents index as a variant of InstructionContent is 0
+          if (std::variant(instr.getContent()).index() == 0){
+            auto content = get<MiniMC::Model::TACContent>(instr.getContent());
+            if (content.res->isRegister()){
+              auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              auto resName = resReg->getSymbol().getFullName();
+              std::ostringstream oss;
+              oss << instr.getOpcode();
+              auto opCodeString = oss.str();
+              auto arguments = content.op1->string_repr() + content.op2->string_repr();
+              registerStruct regStruct {resName, opCodeString, arguments};
+              registers.push_back(regStruct);
+            }
+          }
+          // CallContents index as a variant of InstructionContent is 14
+          if (std::variant(instr.getContent()).index() == 14){
+            auto content = get<MiniMC::Model::CallContent>(instr.getContent());
+            if (content != NULL && content.res->isRegister()) {
+              auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              auto resName = resReg->getSymbol().getFullName();
+              auto opCodeString = "Call";
+              auto funcrepr = content.function->string_repr();
+              auto params = content.params;
+              auto args = content.argument;
+              auto breakpont = 1+1;
+            }
+          }
         }
       }
     }
