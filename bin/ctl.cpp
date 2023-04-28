@@ -70,16 +70,35 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
           }
           // CallContents index as a variant of InstructionContent is 14
           if (std::variant(instr.getContent()).index() == 14){
+            std::string resName;
             auto content = get<MiniMC::Model::CallContent>(instr.getContent());
-            if (content != NULL && content.res->isRegister()) {
+            auto opCodeString = "Call";
+            auto params = content.params;
+            std::string allParams;
+            for (auto par: params){
+              allParams += par->string_repr();
+            }
+            auto funcptr = content.function;
+            std::string funcName;
+            if (funcptr->isConstant()){
+              auto funcConstant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(funcptr);
+              auto conSize = funcConstant->getSize();
+              if(funcConstant->isPointer() && conSize == 8){
+                auto tConstant = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(funcConstant);
+                funcName = func->getPrgm().getFunctions()[getFunctionId(tConstant->getValue())]->getSymbol().getName();
+                auto breakpointx = "x";
+              } else if(funcConstant->isPointer() && conSize == 4){
+                //Do 32-bit sized ptr stuff.
+              }
+            }
+            //Hvordan håndteres result registret i et void call.
+            if (content.res && content.res->isRegister()) {
               auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-              auto resName = resReg->getSymbol().getFullName();
-              auto opCodeString = "Call";
-              auto funcrepr = content.function->string_repr();
-              auto params = content.params;
-              auto args = content.argument;
+              resName = resReg->getSymbol().getFullName();
               auto breakpont = 1+1;
             }
+
+            registerStruct regStruct {resName, opCodeString, allParams};
           }
         }
       }
