@@ -68,6 +68,32 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               registers.push_back(regStruct);
             }
           }
+          if(std::variant(instr.getContent()).index()==11){
+                  auto content = get<MiniMC::Model::LoadContent>(instr.getContent());
+                  auto laodString = "Load";
+                  if(content.res->isRegister()){
+                    auto loadReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+                    auto resnName = loadReg->getSymbol().getFullName();
+                    std::ostringstream ossload;
+                    ossload << instr.getOpcode();
+                    auto load = content.addr->string_repr();
+                    registerStruct loadStruct {resnName, laodString, load};
+                    registers.push_back(loadStruct);
+                  }
+          }
+          if(std::variant(instr.getContent()).index()==12){
+                  auto content = get<MiniMC::Model::StoreContent>(instr.getContent());
+                  auto storeString = "Store";
+                  if(content.storee->isRegister()){
+                  auto storeReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.addr);
+                  auto resnName = storeReg->getSymbol().getFullName();
+                  std::ostringstream ossstore;
+                  ossstore << instr.getOpcode();
+                  auto store = content.addr->string_repr() + content.storee->string_repr() + content.variableName;
+                  registerStruct storeStruct {resnName, storeString, store};
+                  registers.push_back(storeStruct);
+                  }
+          }
           // CallContents index as a variant of InstructionContent is 14
           if (std::variant(instr.getContent()).index() == 14){
             std::string resName;
