@@ -68,6 +68,19 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               registers.push_back(regStruct);
             }
           }
+          if(std::variant(instr.getContent()).index()==5){
+            auto content = get<MiniMC::Model::PtrAddContent>(instr.getContent());
+            auto ptrAddString = "PtrAdd";
+            if (content.res->isRegister()){
+              auto ptrAddReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              auto resName = ptrAddReg->getSymbol().getFullName();
+              std::ostringstream ossPtrAdd;
+              ossPtrAdd << instr.getOpcode();
+              auto ptrAdd = content.res->string_repr() + content.ptr->string_repr() + content.skipsize->string_repr() + content.nbSkips->string_repr();
+              registerStruct ptrAddStruct {resName, ptrAddString, ptrAdd};
+              registers.push_back(ptrAddStruct);
+            }
+          }
           if(std::variant(instr.getContent()).index()==9){
             auto content = get<MiniMC::Model::NonDetContent>(instr.getContent());
             auto nonDetString = "NonDet";
