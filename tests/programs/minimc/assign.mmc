@@ -1,0 +1,105 @@
+# Functions
+## assign2
+  .registers
+    <assign2:__minimc.sp Pointer>
+  .parameters
+    assign2:__minimc.sp
+  .returns
+    Void
+  .cfa
+    BB0  {assign2:bb}
+    [
+      Store  <H(0+0) Pointer> <0x2 Int32>
+      RetVoid
+      ->BB1
+    ]
+    BB1  {assign2:bb}
+    [
+    ]
+## assign4
+  .registers
+    <assign4:__minimc.sp Pointer>
+  .parameters
+    assign4:__minimc.sp
+  .returns
+    Void
+  .cfa
+    BB0  {assign4:bb}
+    [
+      Store  <H(0+0) Pointer> <0x4 Int32>
+      RetVoid
+      ->BB1
+    ]
+    BB1  {assign4:bb}
+    [
+    ]
+## assign8
+  .registers
+    <assign8:__minimc.sp Pointer>
+  .parameters
+    assign8:__minimc.sp
+  .returns
+    Void
+  .cfa
+    BB0  {assign8:bb}
+    [
+      Store  <H(0+0) Pointer> <0x8 Int32>
+      RetVoid
+      ->BB1
+    ]
+    BB1  {assign8:bb}
+    [
+    ]
+## main
+  .registers
+    <main:__minimc.sp Pointer>
+    <main:tmp6 Int32>
+  .parameters
+    main:__minimc.sp
+  .returns
+    Int32
+  .cfa
+    BB0  {main:bb}
+    [
+      Store  <H(0+0) Pointer> <0x1 Int32>
+      ->BB2
+    ]
+    BB2  {main:bb}
+    [
+      Call <F(0+0) Pointer> <main:__minimc.sp Pointer> 
+      ->BB3
+    ]
+    BB3  {main:bb}
+    [
+      ->BB4
+    ]
+    BB4  {main:bb}
+    [
+      Call <F(1+0) Pointer> <main:__minimc.sp Pointer> 
+      ->BB5
+    ]
+    BB5  {main:bb}
+    [
+      ->BB6
+    ]
+    BB6  {main:bb}
+    [
+      Call <F(2+0) Pointer> <main:__minimc.sp Pointer> 
+      ->BB7
+    ]
+    BB7  {main:bb}
+    [
+      <main:tmp6 Int32> = Load Int32 <H(0+0) Pointer>
+      Ret <main:tmp6 Int32>
+      ->BB1
+    ]
+    BB1  {main:bb}
+    [
+    ]
+# Entrypoints
+# Heap
+0 : 4
+1 : 2
+# Initialiser
+  Store  <H(0+0) Pointer> <0 Int32>
+  Store  <H(1+0) Pointer> <0 Int16>

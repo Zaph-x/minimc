@@ -79,9 +79,10 @@ namespace MiniMC {
         result = vstack->addRegister(MiniMC::Model::Symbol{"_"}, restype);
       }
 
-      edge->getInstructions () = MiniMC::Model::InstructionStream({MiniMC::Model::createInstruction<MiniMC::Model::InstructionCode::Call>({.res = result,
-                                                                                                                                                                               .function = funcpointer,
-                                                                                                                                                                               .params = params})});
+      edge->getInstructions () = MiniMC::Model::InstructionStream({MiniMC::Model::createInstruction<MiniMC::Model::InstructionCode::Call>(
+          { .res = result,
+            .function = funcpointer,
+            .params = params})});
       
       return program.addFunction(name, {},
                                  program.getTypeFactory().makeVoidType(),
@@ -138,13 +139,16 @@ namespace MiniMC {
 	
 	for (auto& g : module.getGlobalList()) {
 	  auto pointTySize = lcontext.computeSizeInBytes(g.getValueType());
-	  
+	  auto gName = g.getName().str();
 	  auto gvar = lcontext.getConstantFactory().makeHeapPointer(prgm->getHeapLayout().addBlock(pointTySize));
 	  lcontext.addValue (&g, gvar);
 	  if (g.hasInitializer()) {
 	    auto val = lcontext.findValue(g.getInitializer());
-	    instr.push_back(MiniMC::Model::createInstruction<MiniMC::Model::InstructionCode::Store>({.addr = gvar,
-		  .storee = val}));
+	    // auto varName;
+            instr.push_back(MiniMC::Model::createInstruction<MiniMC::Model::InstructionCode::Store>(
+                {.addr = gvar,
+		  .storee = val,
+                  .variableName = gName}));
 	  }
 	}
 	if (instr.size()) {

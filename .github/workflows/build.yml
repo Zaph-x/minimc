@@ -8,12 +8,14 @@ jobs:
     container: ubuntu:latest
     steps:
     - uses: actions/checkout@v2
-    - name: BuildDep
-      run: apt-get update && apt-get -y install libtinfo-dev zlib1g-dev git g++-12 cmake libboost-dev libboost-program-options-dev cvc4 libcvc4-dev libcln-dev zip bison flex
-    - name: Setup
-      run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=g++-12 -DCMAKE_BUILD_TYPE=Release ..
+    - name: uncachable
+      run: apt update -y && apt install -y bison
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: libtinfo-dev zlib1g-dev git g++-12 cmake libboost-dev libboost-program-options-dev cvc4 libcvc4-dev libcln-dev zip flex
+        version: 1.0
     - name: build
-      run: cd build && make
+      run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=g++-12 -DCMAKE_BUILD_TYPE=Release --build .. --target minimc
     - name: test
       run: cd build && ctest --output-on-failure
     - name: package

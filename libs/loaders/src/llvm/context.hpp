@@ -119,7 +119,8 @@ namespace MiniMC {
       else if constexpr (MiniMC::Model::InstructionCode::Store == code) {
 	gather.template addInstr<MiniMC::Model::InstructionCode::Store>({
 	    .addr = context.findValue (inst->getOperand(1)),
-	    .storee = context.findValue (inst->getOperand (0))
+	    .storee = context.findValue (inst->getOperand (0)),
+            .variableName = inst->getOperand(1)->getName().str()
 	  });
       }
 
@@ -252,7 +253,10 @@ namespace MiniMC {
         gather.template addInstr<MiniMC::Model::InstructionCode::Call>({
 	    .res = res,
 	    .function = func_ptr,
-	    .params = params});	  
+	    .params = params,
+            // Call should only ever have the 1 operand, so we assume that the 0th operand is the one.
+            // Simply exposing the called function
+            .argument = inst->getOperand(0)->getName().str()});
        }
       }
 

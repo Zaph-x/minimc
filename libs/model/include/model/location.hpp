@@ -64,6 +64,7 @@ namespace MiniMC {
 
       void addEdge(Edge* e) { edges.push_back(e); }
       void addIncomingEdge(Edge* e) { incomingEdges.push_back(e); }
+      std::vector<Edge*> getIncomingEdges() const { return incomingEdges; }
       /** 
        *
        * @return begin iterator for outgoing edges
@@ -99,6 +100,10 @@ namespace MiniMC {
 
       auto nbOutgoingEdges() const {
         return edges.size();
+      }
+
+      auto getOutgoingEdges() const {
+        return edges;
       }
 
       MiniMC::Hash::hash_t hash () const {

@@ -98,6 +98,7 @@ po::options_description smtOptions(SetupOptions& options) {
   return smt;
 }
 
+
 po::options_description defOptions(SetupOptions& options) {
   auto selCommand = [&options](const std::string& sel) {
     if (isCommand(sel)) {
@@ -161,10 +162,11 @@ bool parseOptions(int argc, char* argv[], SetupOptions& opt) {
 
   std::vector<int> cpasel;
   general.add(cpaOptions(cpasel));
-  addCommandOptions(general);
 
   options.add(defOptions(opt));
+  addCommandOptions(general);
   options.add(general);
+
 
   po::positional_options_description pos;
   pos.add("inputfile", 1).add("command", 1);

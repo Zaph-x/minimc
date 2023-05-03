@@ -366,6 +366,7 @@ namespace MiniMC {
       Value_ptr res;
       Value_ptr min;
       Value_ptr max;
+      std::string arguments;
     };
     
     template <>
@@ -413,6 +414,7 @@ ASSUMEASSERTS
       Value_ptr res;
       Value_ptr function;
       std::vector<Value_ptr> params;
+      std::string argument;
     };
     
     template <>
@@ -462,6 +464,7 @@ ASSUMEASSERTS
     struct StoreContent {
       Value_ptr addr;
       Value_ptr storee;
+      std::string variableName;
     };
     
     template <>
@@ -624,7 +627,9 @@ ASSUMEASSERTS
       }
       
       else if constexpr (std::is_same<StoreContent,T> ()) {
-	return {.addr = replace(t.addr), .storee = replace(t.storee)};
+	return {.addr = replace(t.addr),
+                .storee = replace(t.storee),
+                .variableName = t.variableName};
       }
 
       else if constexpr (std::is_same<RetContent,T> ()) {
@@ -636,7 +641,10 @@ ASSUMEASSERTS
 	auto inserter = std::back_inserter(params);
 	std::for_each (t.params.begin(),t.params.end(),[replace,&inserter](auto& p) {inserter = replace(p);}); 
 	
-	return {.res = replace(t.res), .function = replace(t.function), .params = params};
+	return {.res = replace(t.res),
+                .function = replace(t.function),
+                .params = params,
+                .argument = t.argument};
 
       }
 
@@ -680,6 +688,8 @@ ASSUMEASSERTS
        * \returns InstructionCode of this Instruction
        */
       auto getOpcode() const { return opcode; }
+
+      auto getContent() const { return content; }
 
       template<InstructionCode c>
       auto& getOps () const {

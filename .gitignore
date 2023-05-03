@@ -1,6 +1,7 @@
 .idea
 cmake-build-debug
 build
+output_file.smv
 
 ### Created by https://www.gitignore.io
 ### CMake ###
