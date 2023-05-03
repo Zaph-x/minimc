@@ -255,8 +255,7 @@ namespace MiniMC {
 	    .res = res,
 	    .function = func_ptr,
 	    .params = params,
-            // Call should only ever have the 1 operand, so we assume that the 0th operand is the one.
-            // Simply exposing the called function
+            // Simply exposing the called function by accessing the final member of the operandList
             .argument = inst->getOperand(size-1)->getName().str()});
 
        }

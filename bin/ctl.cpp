@@ -59,7 +59,9 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
             auto content = get<MiniMC::Model::TACContent>(instr.getContent());
             if (content.res->isRegister()){
               auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-              auto resName = location.get()->getInfo().name.getName() + "-" + resReg->getName();
+              std::vector<std::string> splitResult;
+              boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+              auto resName = splitResult[0] + "-" + resReg->getSymbol().prefix().getName();
               std::ostringstream oss;
               oss << instr.getOpcode();
               auto opCodeString = oss.str();
@@ -73,7 +75,9 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
             auto ptrAddString = "PtrAdd";
             if (content.res->isRegister()){
               auto ptrAddReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-              auto resName = ptrAddReg->getSymbol().getFullName();
+              std::vector<std::string> splitResult;
+              boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+              auto resName = splitResult[0] + "-" + ptrAddReg->getSymbol().prefix().getName();
               std::ostringstream ossPtrAdd;
               ossPtrAdd << instr.getOpcode();
               auto ptrAdd = content.res->string_repr() + content.ptr->string_repr() + content.skipsize->string_repr() + content.nbSkips->string_repr();
@@ -86,24 +90,28 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
             auto nonDetString = "NonDet";
                 if(content.res->isRegister()){
                   auto nonDetReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-                  auto resnName = nonDetReg->getSymbol().getFullName();
+                  std::vector<std::string> splitResult;
+                  boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+                  auto resName = splitResult[0] + "-" + nonDetReg->getSymbol().prefix().getName();
                   std::ostringstream ossNonDet;
                   ossNonDet << instr.getOpcode();
                   auto nonDet = content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments;
-                  registerStruct nonDetStruct {resnName, nonDetString, nonDet};
+                  registerStruct nonDetStruct {resName, nonDetString, nonDet};
                   registers.push_back(nonDetStruct);
                 }
           }
           if(std::variant(instr.getContent()).index()==11){
                   auto content = get<MiniMC::Model::LoadContent>(instr.getContent());
-                  auto laodString = "Load";
+                  auto loadString = "Load";
                   if(content.res->isRegister()){
                     auto loadReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-                    auto resnName = loadReg->getSymbol().getFullName();
+                    std::vector<std::string> splitResult;
+                    boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+                    auto resName = splitResult[0] + "-" + loadReg->getSymbol().prefix().getName();
                     std::ostringstream ossload;
                     ossload << instr.getOpcode();
                     auto load = content.addr->string_repr();
-                    registerStruct loadStruct {resnName, laodString, load};
+                    registerStruct loadStruct {resName, loadString, load};
                     registers.push_back(loadStruct);
                   }
           }
@@ -112,11 +120,13 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
                   auto storeString = "Store";
                   if(content.storee->isRegister()){
                   auto storeReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.addr);
-                  auto resnName = storeReg->getSymbol().getFullName();
+                  std::vector<std::string> splitResult;
+                  boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+                  auto resName = splitResult[0] + "-" + storeReg->getSymbol().prefix().getName();
                   std::ostringstream ossstore;
                   ossstore << instr.getOpcode();
                   auto store = content.addr->string_repr() + content.storee->string_repr() + content.variableName;
-                  registerStruct storeStruct {resnName, storeString, store};
+                  registerStruct storeStruct {resName, storeString, store};
                   registers.push_back(storeStruct);
                   }
           }
