@@ -59,7 +59,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
             auto content = get<MiniMC::Model::TACContent>(instr.getContent());
             if (content.res->isRegister()){
               auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-              auto resName = resReg->getSymbol().getFullName();
+              auto resName = location.get()->getInfo().name.getName() + "-" + resReg->getName();
               std::ostringstream oss;
               oss << instr.getOpcode();
               auto opCodeString = oss.str();
@@ -243,16 +243,22 @@ void write_locations(MiniMC::Model::Program program, std::unordered_map<std::str
     smv += "VAR locations: {" + locations + "};\n";
 }
 
-void write_variables(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv) {
-   for (const auto& var : varMap) {
+void write_variables(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<registerStruct> &varRegs) {
+  std::string varValues;
+  for (const auto& var : varMap) {
+      varValues = "";
        std::string varName = var.first;
-       std::string varValues = "";
        for (auto value : var.second) {
          varValues += value + ", ";
        }
        varValues = varValues.substr(0, varValues.size()-2);
        smv += "VAR " + varName + " : {" + varValues + "};\n";
    }
+  for (const auto& regStruct : varRegs){
+    std::string varRegName = regStruct.destinationRegister;
+    boost::replace_all(varRegName, ":", "-");
+    smv += "VAR " + varRegName + " : {undef, " + regStruct.content + "};\n";
+  }
 }
 
 void write_init(std::unordered_map<std::string, std::string> initMap, std::string &smv) {
@@ -402,12 +408,15 @@ void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
     std::unordered_map<std::string, std::vector<std::string>> nextMap;
     std::unordered_map<std::string, std::string> initMap;
     std::unordered_map<std::string, std::vector<std::string>> varMap;
+    std::vector<registerStruct> varRegs;
     std::vector<std::string> known_locations;
     write_module("main", smv);
-
+    for(const auto func : program.getFunctions()){
+      functionRegisters(func, varRegs);
+    }
     setup_variables(program, varMap, initMap, smv);
     write_locations(program, varMap, smv, known_locations);
-    write_variables(program, varMap, smv);
+    write_variables(program, varMap, smv, varRegs);
     write_init(initMap, smv);
     write_next(program, varMap, smv, known_locations);
     // Create file and write to it, if created wipe contents before writing.
@@ -449,20 +458,15 @@ namespace {
 
 };
 
-MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::CPA::AnalysisBuilder& cpa) {
+MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::CPA::AnalysisBuilder& cpa)
+{
   MiniMC::Support::Messager messager{};
   auto& prg = ctrl.getProgram();
   std::vector<registerStruct> registers;
-
-  for (const MiniMC::Model::Function_ptr& func: prg->getFunctions()){
-    functionRegisters(func, registers);
-  }
   messager.message("CTL analysis initialised");
-
   /*
    * HERE THE FILE WILL BE WRITTEN. FOR NOW WE WILL HARDCODE A FILE NAME TO USE
    * */
-
   std::string filename = "output_file.smv";
   writeToFile(*prg, filename);
   // check if file exists
