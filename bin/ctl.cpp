@@ -71,7 +71,17 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               boost::split(op2, content.op2->string_repr(), boost::is_any_of(" "));
               op1[0].erase(0,1);
               op2[0].erase(0,1);
-              registerStruct regStruct {resName, opCodeString, op1[0] + " " + op2[0]};
+
+              if(op1[0].empty() || std::isdigit(op1[0][0])){
+                op1[0] = op1[0].substr(1);
+              }
+              if(op2[0].empty() || std::isdigit(op2[0][0])){
+                op2[0] = op2[0].substr(1);
+              }
+              auto contentString = op1[0] + "_" + op2[0];
+              boost::replace_all(contentString, ":", "-");
+
+              registerStruct regStruct {resName, opCodeString, contentString};
               registers.push_back(regStruct);
             }
           }
@@ -271,10 +281,7 @@ void write_variables(MiniMC::Model::Program program, std::unordered_map<std::str
    }
   for (auto& regStruct : varRegs){
     std::string varRegName = regStruct.destinationRegister;
-    boost::replace_all(varRegName, ":", "-");
-    if(!regStruct.content.empty() || std::isdigit(regStruct.content[0])){
-      regStruct.content = regStruct.content.substr(1);
-    }
+    //boost::replace_all(varRegName, ":", "-");
     smv += "VAR " + varRegName + " : {undef, " + regStruct.content + "};\n";
   }
 }
