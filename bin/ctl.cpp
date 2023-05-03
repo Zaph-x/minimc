@@ -107,8 +107,10 @@ void write_locations(MiniMC::Model::Program program, std::unordered_map<std::str
           std::string locName = std::to_string(loc->getTo()->getID());
 
           std::string currentLocation = funcName+"-bb"+locName;
-          known_locations.push_back(currentLocation);
-          locations += currentLocation + ", ";
+          if (std::find(known_locations.begin(), known_locations.end(), currentLocation) == known_locations.end()) {
+            known_locations.push_back(currentLocation);
+            locations += currentLocation + ", ";
+          }
         }
     }
     for (const auto& func : program.getFunctions()) {
@@ -162,7 +164,7 @@ void store_transitions(MiniMC::Model::Program program, MiniMC::Model::Function_p
         if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
           nextLocation = "error";
         }
-        transition_map[currentLocation].push_back(next_stored);
+        //transition_map[currentLocation].push_back(next_stored);
         auto edge_count = program.getFunction(func_name)->getCFA().getEdges().size();
         transition_map[func_name + "-bb" + std::to_string(edge_count)].push_back(next_stored);
       }
@@ -364,7 +366,14 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
       //   messager.message("!!! Invalid CTL spec !!!");
       //   return MiniMC::Host::ExitCodes::RuntimeError;
       // }
-      outfile << std::endl << "CTLSPEC " << std::endl << opts.spec << std::endl;
+      // if the opts.spec is equal to "unsafe_fork" replace it with "AG (locations = fork-bb0 -> AX(AF locations =
+      // fork-bb0))"
+      if (opts.spec == "unsafe_fork") {
+        opts.spec = "AG (locations = fork-bb0 -> AX(AF locations = fork-bb0))";
+        outfile << std::endl << "CTLSPEC NAME unsafe_fork := " << opts.spec << ";" << std::endl;
+      } else {
+        outfile << std::endl << "CTLSPEC " << std::endl << opts.spec << std::endl;
+      }
     } else {
       // Enter interactive mode for CTL
       messager.message("No CTL spec provided. Entering interactive mode");
@@ -383,15 +392,19 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
         //   messager.message("Enter CTL spec: ");
         //   continue;
         // }
-        spec += "CTLSPEC\n";
-        spec += buffer;
-        spec += "\n";
+        if (buffer == "unsafe_fork") {
+          spec += ("\nCTLSPEC NAME unsafe_fork := AG (locations = fork-bb0 -> AX(AF locations = fork-bb0));\n");
+        } else {
+          spec += "CTLSPEC\n";
+          spec += buffer;
+          spec += "\n";
+        }
+        
         messager.message("Enter CTL spec: ");
       }
       outfile << std::endl << spec << std::endl;
     }
-  } catch (std::exception& e) {
-    messager.message(e.what());
+  } catch (std::except    messager.message(e.what());
     outfile.close();
     
     if (opts.keep_smv == 0) std::remove(filename.c_str());
