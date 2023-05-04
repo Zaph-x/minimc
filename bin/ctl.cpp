@@ -16,7 +16,7 @@
 namespace po = boost::program_options;
 
 struct registerStruct{
-  std::string destinationRegister, opcode, content;
+  std::string destinationRegister, opcode, content, regLocation;
 };
 
 auto parse_query(const std::string& s) -> std::vector<ctl::syntax_tree_t> {
@@ -47,7 +47,16 @@ std::string exec_cmd(const char* cmd) {
     }
     return result;
 }
+std::string registerFormat(std::string regStr) {
+  std::vector<std::string> splitString;
+  boost::split(splitString, regStr, boost::is_any_of(" "));
+  splitString[0].erase(0,1);
 
+  if(splitString[0].empty() || std::isdigit(splitString[0][0])){
+    splitString[0] = splitString[0].substr(1);
+  }
+  return splitString[0];
+}
 void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers){
 
     for (const auto& location: func->getCFA().getLocations()){
@@ -55,6 +64,10 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
         auto instrStream = location->getIncomingEdges()[0]->getInstructions();
         for (auto& instr: instrStream){
           // TACContents index as a variant of InstructionContent is 0
+          registerStruct mmcregister;
+          std::string intermediateLocation = location->getInfo().getName() + std::to_string(location->getID());
+          boost::replace_all(intermediateLocation, ":", "-");
+          mmcregister.regLocation = intermediateLocation;
           if (std::variant(instr.getContent()).index() == 0){
             auto content = get<MiniMC::Model::TACContent>(instr.getContent());
             if (content.res->isRegister()){
@@ -65,24 +78,18 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               std::ostringstream oss;
               oss << instr.getOpcode();
               auto opCodeString = oss.str();
-              std::vector<std::string> op1;
-              std::vector<std::string> op2;
-              boost::split(op1, content.op1->string_repr(), boost::is_any_of(" "));
-              boost::split(op2, content.op2->string_repr(), boost::is_any_of(" "));
-              op1[0].erase(0,1);
-              op2[0].erase(0,1);
+              std::string op1 = registerFormat(content.op1->string_repr());
+              std::string op2 = registerFormat(content.op2->string_repr());
 
-              if(op1[0].empty() || std::isdigit(op1[0][0])){
-                op1[0] = op1[0].substr(1);
-              }
-              if(op2[0].empty() || std::isdigit(op2[0][0])){
-                op2[0] = op2[0].substr(1);
-              }
-              auto contentString = op1[0] + "_" + op2[0];
+
+              auto contentString = op1 + "_" + op2;
               boost::replace_all(contentString, ":", "-");
 
-              registerStruct regStruct {resName, opCodeString, contentString};
-              registers.push_back(regStruct);
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = contentString;
+              mmcregister.opcode = opCodeString;
+
+              registers.push_back(mmcregister);
             }
           }
           if(std::variant(instr.getContent()).index()==5){
@@ -96,8 +103,10 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               std::ostringstream ossPtrAdd;
               ossPtrAdd << instr.getOpcode();
               auto ptrAdd = content.res->string_repr() + content.ptr->string_repr() + content.skipsize->string_repr() + content.nbSkips->string_repr();
-              registerStruct ptrAddStruct {resName, ptrAddString, ptrAdd};
-              registers.push_back(ptrAddStruct);
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = ptrAddString;
+              mmcregister.opcode = ptrAdd;
+              registers.push_back(mmcregister);
             }
           }
           if(std::variant(instr.getContent()).index()==9){
@@ -110,9 +119,11 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
                   auto resName = splitResult[0] + "-" + nonDetReg->getSymbol().prefix().getName();
                   std::ostringstream ossNonDet;
                   ossNonDet << instr.getOpcode();
-                  auto nonDet = content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments;
-                  registerStruct nonDetStruct {resName, nonDetString, nonDet};
-                  registers.push_back(nonDetStruct);
+                  auto nonDet = registerFormat(content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments);
+                  mmcregister.destinationRegister = resName;
+                  mmcregister.content = nonDetString;
+                  mmcregister.opcode = nonDet;
+                  registers.push_back(mmcregister);
                 }
           }
           if(std::variant(instr.getContent()).index()==11){
@@ -125,9 +136,11 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
                     auto resName = splitResult[0] + "-" + loadReg->getSymbol().prefix().getName();
                     std::ostringstream ossload;
                     ossload << instr.getOpcode();
-                    auto load = content.addr->string_repr();
-                    registerStruct loadStruct {resName, loadString, load};
-                    registers.push_back(loadStruct);
+                    auto load = registerFormat(content.addr->string_repr());
+                    mmcregister.destinationRegister = resName;
+                    mmcregister.content = loadString;
+                    mmcregister.opcode = load;
+                    registers.push_back(mmcregister);
                   }
           }
           if(std::variant(instr.getContent()).index()==12){
@@ -140,9 +153,11 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
                   auto resName = splitResult[0] + "-" + storeReg->getSymbol().prefix().getName();
                   std::ostringstream ossstore;
                   ossstore << instr.getOpcode();
-                  auto store = content.addr->string_repr() + content.storee->string_repr() + content.variableName;
-                  registerStruct storeStruct {resName, storeString, store};
-                  registers.push_back(storeStruct);
+                  auto store = registerFormat(content.addr->string_repr() + content.storee->string_repr() + content.variableName);
+                  mmcregister.destinationRegister = resName;
+                  mmcregister.content = storeString;
+                  mmcregister.opcode = store;
+                  registers.push_back(mmcregister);
                   }
           }
           // CallContents index as a variant of InstructionContent is 14
@@ -286,10 +301,13 @@ void write_variables(MiniMC::Model::Program program, std::unordered_map<std::str
   }
 }
 
-void write_init(std::unordered_map<std::string, std::string> initMap, std::string &smv) {
+void write_init(std::unordered_map<std::string, std::string> initMap, std::string &smv, std::vector<registerStruct> &varRegs) {
   for (const auto& init : initMap) {
       smv += init.second;
     }
+  for (auto& regStruct : varRegs){
+    smv += "ASSIGN init(" + regStruct.destinationRegister + ") := undef;\n";
+  }
 }
 
 void store_transitions(MiniMC::Model::Program program, MiniMC::Model::Function_ptr function, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations, std::unordered_map<std::string, std::vector<std::string>> &transition_map) {
@@ -336,33 +354,6 @@ void write_function_case(MiniMC::Model::Program program, std::unordered_map<std:
     smv += "    locations = " + kv.first + " : " + transition + ";\n";
   }
 
-//  std::string function_case = "";
-//  std::string nextLocation = "";
-//  for (auto &edge : function->getCFA().getEdges()) {
-//    std::string from = std::to_string(edge->getFrom()->getID());
-//    std::string to = std::to_string(edge->getTo()->getID());
-//    std::string currentLocation = function->getSymbol().getName()+"-bb"+from;
-//    nextLocation = function->getSymbol().getName()+"-bb"+to;
-//    std::string next_stored = nextLocation;
-//    for (auto &instr : edge->getInstructions()) {
-//      if (instr.getOpcode() == MiniMC::Model::InstructionCode::Call) {
-//        auto call_instr = get<14>(instr.getContent());
-//        std::string func_name = call_instr.argument;
-//        nextLocation = func_name+"-bb0";
-//        if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
-//          nextLocation = "error";
-//        }
-//        auto edge_count = program.getFunction(func_name)->getCFA().getEdges().size();
-//        function_case += "    locations = " + func_name + "-bb" + std::to_string(edge_count) + " : " + next_stored + ";\n";
-//      }
-//    }
-//    if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
-//      nextLocation = "error";
-//    }
-//    function_case += "    locations = " + currentLocation + " : " + nextLocation + ";\n";
-//  }
-//  function_case += "    locations = " + nextLocation + " : " + nextLocation + ";\n";
-//  smv += function_case;
 }
 
 void write_assignment_case(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>> &varMap, std::string &smv, std::vector<std::string> &known_locations, std::string var_name) {
@@ -425,6 +416,16 @@ void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, 
     smv += "  esac;\n";
   }
 }
+void write_registerVar_next(std::string &smv, std::vector<registerStruct> &varRegs){
+  for (const auto& var : varRegs) {
+    std::string varName = var.destinationRegister;
+    smv += "ASSIGN next(" + varName + ") :=\n";
+    smv += "  case\n";
+    smv += "    " + varName + " = undef & ( locations = " + var.regLocation + ") : " + var.content + "; \n";
+    smv += "    TRUE : "+ varName + ";\n";
+    smv += "  esac;\n";
+  }
+}
 
 void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
     // Construct SMV string
@@ -442,8 +443,9 @@ void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
     setup_variables(program, varMap, initMap, smv);
     write_locations(program, varMap, smv, known_locations);
     write_variables(program, varMap, smv, varRegs);
-    write_init(initMap, smv);
+    write_init(initMap, smv, varRegs);
     write_next(program, varMap, smv, known_locations);
+    write_registerVar_next(smv, varRegs);
     // Create file and write to it, if created wipe contents before writing.
     std::ofstream output_file(fileName);
     output_file << smv << std::endl;
