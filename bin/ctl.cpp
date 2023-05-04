@@ -60,7 +60,10 @@ std::string registerFormat(std::string regStr) {
 void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers){
 
     for (const auto& location: func->getCFA().getLocations()){
-      if (location->nbIncomingEdges() == 1){
+      if (location->nbIncomingEdges() > 0){
+        for (const auto& edge: location->getIncomingEdges()){
+
+
         auto instrStream = location->getIncomingEdges()[0]->getInstructions();
         for (auto& instr: instrStream){
           // TACContents index as a variant of InstructionContent is 0
@@ -178,7 +181,6 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               if(funcConstant->isPointer() && conSize == 8){
                 auto tConstant = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(funcConstant);
                 funcName = func->getPrgm().getFunctions()[getFunctionId(tConstant->getValue())]->getSymbol().getName();
-                auto breakpointx = "x";
               } else if(funcConstant->isPointer() && conSize == 4){
                 //Do 32-bit sized ptr stuff.
               }
@@ -187,7 +189,6 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
             if (content.res && content.res->isRegister()) {
               auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
               resName = resReg->getSymbol().getFullName();
-              auto breakpont = 1+1;
             }
 
             registerStruct regStruct {resName, opCodeString, allParams};
@@ -196,7 +197,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
       }
     }
 }
-
+}
 // Adds variable values to the varMap for StoreInstructions
 void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<std::string, std::vector<std::string>> &varMap){
     if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
@@ -553,9 +554,9 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
       }
       outfile << std::endl << spec << std::endl;
     }
-  } catch (std::except    messager.message(e.what());
+  } catch (std::exception& e) {
+    messager.message(e.what());
     outfile.close();
-    
     if (opts.keep_smv == 0) std::remove(filename.c_str());
 
     return MiniMC::Host::ExitCodes::RuntimeError;
