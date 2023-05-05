@@ -49,7 +49,9 @@ std::string exec_cmd(const char* cmd) {
 }
 std::string registerFormat(std::string regStr) {
   std::vector<std::string> splitString;
-  boost::split(splitString, regStr, boost::is_any_of(" "));
+  std::string intermediateString = regStr;
+  boost::replace_all(intermediateString, ".", "depth");
+  boost::split(splitString, intermediateString, boost::is_any_of(" "));
   splitString[0].erase(0,1);
 
   if(splitString[0].empty() || std::isdigit(splitString[0][0])){
@@ -58,18 +60,18 @@ std::string registerFormat(std::string regStr) {
   return splitString[0];
 }
 void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers){
+  std::string funcName = func->getSymbol().getName();
 
-    for (const auto& location: func->getCFA().getLocations()){
+  for (const auto& location: func->getCFA().getLocations()){
       if (location->nbIncomingEdges() > 0){
         for (const auto& edge: location->getIncomingEdges()){
-
+          std::string locName = std::to_string(edge->getTo()->getID());
 
         auto instrStream = location->getIncomingEdges()[0]->getInstructions();
         for (auto& instr: instrStream){
           // TACContents index as a variant of InstructionContent is 0
           registerStruct mmcregister;
-          std::string intermediateLocation = location->getInfo().getName() + std::to_string(location->getID());
-          boost::replace_all(intermediateLocation, ":", "-");
+          std::string intermediateLocation = funcName+"-bb"+locName;
           mmcregister.regLocation = intermediateLocation;
           if (std::variant(instr.getContent()).index() == 0){
             auto content = get<MiniMC::Model::TACContent>(instr.getContent());
@@ -87,7 +89,6 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
 
               auto contentString = op1 + "_" + op2;
               boost::replace_all(contentString, ":", "-");
-
               mmcregister.destinationRegister = resName;
               mmcregister.content = contentString;
               mmcregister.opcode = opCodeString;
