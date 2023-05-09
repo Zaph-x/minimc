@@ -59,23 +59,23 @@ std::string registerFormat(std::string regStr) {
   }
   return splitString[0];
 }
-void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers){
+void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers) {
   std::string funcName = func->getSymbol().getName();
 
-  for (const auto& location: func->getCFA().getLocations()){
-      if (location->nbIncomingEdges() > 0){
-        for (const auto& edge: location->getIncomingEdges()){
-          std::string locName = std::to_string(edge->getTo()->getID());
+  for (const auto& location : func->getCFA().getLocations()) {
+    if (location->nbIncomingEdges() > 0) {
+      for (const auto& edge : location->getIncomingEdges()) {
+        std::string locName = std::to_string(edge->getTo()->getID());
 
-        auto instrStream = location->getIncomingEdges()[0]->getInstructions();
-        for (auto& instr: instrStream){
-          // TACContents index as a variant of InstructionContent is 0
+        auto instrStream = edge->getInstructions();
+        for (auto& instr : instrStream) {
           registerStruct mmcregister;
-          std::string intermediateLocation = funcName+"-bb"+locName;
+          std::string intermediateLocation = funcName + "-bb" + locName;
           mmcregister.regLocation = intermediateLocation;
-          if (std::variant(instr.getContent()).index() == 0){
+          // TACContents index as a variant of InstructionContent is 0
+          if (std::variant(instr.getContent()).index() == 0) {
             auto content = get<MiniMC::Model::TACContent>(instr.getContent());
-            if (content.res->isRegister()){
+            if (content.res->isRegister()) {
               auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
               std::vector<std::string> splitResult;
               boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
@@ -86,7 +86,6 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               std::string op1 = registerFormat(content.op1->string_repr());
               std::string op2 = registerFormat(content.op2->string_repr());
 
-
               auto contentString = op1 + "_" + op2;
               boost::replace_all(contentString, ":", "-");
               mmcregister.destinationRegister = resName;
@@ -96,10 +95,10 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               registers.push_back(mmcregister);
             }
           }
-          if(std::variant(instr.getContent()).index()==5){
+          if (std::variant(instr.getContent()).index() == 5) {
             auto content = get<MiniMC::Model::PtrAddContent>(instr.getContent());
             auto ptrAddString = "PtrAdd";
-            if (content.res->isRegister()){
+            if (content.res->isRegister()) {
               auto ptrAddReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
               std::vector<std::string> splitResult;
               boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
@@ -113,91 +112,127 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               registers.push_back(mmcregister);
             }
           }
-          if(std::variant(instr.getContent()).index()==9){
+          if (std::variant(instr.getContent()).index() == 9) {
             auto content = get<MiniMC::Model::NonDetContent>(instr.getContent());
             auto nonDetString = "NonDet";
-                if(content.res->isRegister()){
-                  auto nonDetReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-                  std::vector<std::string> splitResult;
-                  boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
-                  auto resName = splitResult[0] + "-" + nonDetReg->getSymbol().prefix().getName();
-                  std::ostringstream ossNonDet;
-                  ossNonDet << instr.getOpcode();
-                  auto nonDet = registerFormat(content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments);
-                  mmcregister.destinationRegister = resName;
-                  mmcregister.content = nonDetString;
-                  mmcregister.opcode = nonDet;
-                  registers.push_back(mmcregister);
-                }
+            if (content.res->isRegister()) {
+              auto nonDetReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              std::vector<std::string> splitResult;
+              boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+              auto resName = splitResult[0] + "-" + nonDetReg->getSymbol().prefix().getName();
+              std::ostringstream ossNonDet;
+              ossNonDet << instr.getOpcode();
+              auto nonDet = registerFormat(content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments);
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = nonDetString;
+              mmcregister.opcode = nonDet;
+              registers.push_back(mmcregister);
+            }
           }
-          if(std::variant(instr.getContent()).index()==11){
-                  auto content = get<MiniMC::Model::LoadContent>(instr.getContent());
-                  auto loadString = "Load";
-                  if(content.res->isRegister()){
-                    auto loadReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-                    std::vector<std::string> splitResult;
-                    boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
-                    auto resName = splitResult[0] + "-" + loadReg->getSymbol().prefix().getName();
-                    std::ostringstream ossload;
-                    ossload << instr.getOpcode();
-                    auto load = registerFormat(content.addr->string_repr());
-                    mmcregister.destinationRegister = resName;
-                    mmcregister.content = loadString;
-                    mmcregister.opcode = load;
-                    registers.push_back(mmcregister);
-                  }
+          if (std::variant(instr.getContent()).index() == 11) {
+            auto content = get<MiniMC::Model::LoadContent>(instr.getContent());
+            auto loadString = "Load";
+            if (content.res->isRegister()) {
+              auto loadReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              std::vector<std::string> splitResult;
+              boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+              auto resName = splitResult[0] + "-" + loadReg->getSymbol().prefix().getName();
+              std::ostringstream ossload;
+              ossload << instr.getOpcode();
+              auto load = registerFormat(content.addr->string_repr());
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = loadString;
+              mmcregister.opcode = load;
+              registers.push_back(mmcregister);
+            }
           }
-          if(std::variant(instr.getContent()).index()==12){
-                  auto content = get<MiniMC::Model::StoreContent>(instr.getContent());
-                  auto storeString = "Store";
-                  if(content.storee->isRegister()){
-                  auto storeReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.addr);
-                  std::vector<std::string> splitResult;
-                  boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
-                  auto resName = splitResult[0] + "-" + storeReg->getSymbol().prefix().getName();
-                  std::ostringstream ossstore;
-                  ossstore << instr.getOpcode();
-                  auto store = registerFormat(content.addr->string_repr() + content.storee->string_repr() + content.variableName);
-                  mmcregister.destinationRegister = resName;
-                  mmcregister.content = storeString;
-                  mmcregister.opcode = store;
-                  registers.push_back(mmcregister);
-                  }
+          if (std::variant(instr.getContent()).index() == 12) {
+            auto content = get<MiniMC::Model::StoreContent>(instr.getContent());
+            auto storeString = "Store";
+            if (content.storee->isRegister()) {
+              auto storeReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.addr);
+              std::vector<std::string> splitResult;
+              boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+              auto resName = splitResult[0] + "-" + storeReg->getSymbol().prefix().getName();
+              std::ostringstream ossstore;
+              ossstore << instr.getOpcode();
+              auto store = registerFormat(content.addr->string_repr() + content.storee->string_repr() + content.variableName);
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = storeString;
+              mmcregister.opcode = store;
+              registers.push_back(mmcregister);
+            }
           }
           // CallContents index as a variant of InstructionContent is 14
-          if (std::variant(instr.getContent()).index() == 14){
+          if (std::variant(instr.getContent()).index() == 14) {
             std::string resName;
+            std::string callContent;
+            std::string opCodeString = "Call";
             auto content = get<MiniMC::Model::CallContent>(instr.getContent());
-            auto opCodeString = "Call";
-            auto params = content.params;
-            std::string allParams;
-            for (auto par: params){
-              allParams += par->string_repr();
-            }
-            auto funcptr = content.function;
-            std::string funcName;
-            if (funcptr->isConstant()){
-              auto funcConstant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(funcptr);
-              auto conSize = funcConstant->getSize();
-              if(funcConstant->isPointer() && conSize == 8){
-                auto tConstant = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(funcConstant);
-                funcName = func->getPrgm().getFunctions()[getFunctionId(tConstant->getValue())]->getSymbol().getName();
-              } else if(funcConstant->isPointer() && conSize == 4){
-                //Do 32-bit sized ptr stuff.
-              }
-            }
-            //Hvordan håndteres result registret i et void call.
-            if (content.res && content.res->isRegister()) {
-              auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
-              resName = resReg->getSymbol().getFullName();
+            if (!content.res){
+              resName = opCodeString+"-"+intermediateLocation;
+            }else if (content.res->isRegister()) {
+              auto returnVal = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              std::vector<std::string> splitReturnVal;
+              boost::split(splitReturnVal, location->getInfo().getName(), boost::is_any_of(":"));
+              resName = splitReturnVal[0] + "-" + returnVal->getSymbol().prefix().getName();
+              boost::replace_all(resName, ":", "-");
+              callContent += content.res->getType()->get_type_name() + "_";
             }
 
-            registerStruct regStruct {resName, opCodeString, allParams};
+            callContent += content.argument;
+            if (content.params.size() > 1) {
+              for (int i = 1; i < content.params.size(); i++) {
+
+                if (content.params[i]->isConstant()) {
+                  auto paramsConstant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(content.params[i]);
+                  if (paramsConstant->isPointer() & paramsConstant->getSize() == 8) {
+                    auto paramsPointer = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(paramsConstant);
+                    auto paramsPointerValue = paramsPointer->getValue();
+                    //Pointer struct segments use ascii values to describe the content. 72 = H = Heap. 70 = F = Function and so on.
+                    if (paramsPointerValue.segment == 72) {
+                      for (auto initInstr : func->getPrgm().getInitialiser()) {
+                        if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
+                          auto content = get<12>(instr.getContent());
+                          callContent += "_"+content.variableName;
+                          }
+                        }
+                      }
+                    }
+                } else {
+                  callContent += "_" + registerFormat(content.params[i]->string_repr());
+
+                }
+                boost::replace_all(callContent, ":", "-");
+              }
+              auto funcptr = content.function;
+              std::string funcName;
+              if (funcptr->isConstant()) {
+                auto funcConstant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(funcptr);
+                auto conSize = funcConstant->getSize();
+                if (funcConstant->isPointer() && conSize == 8) {
+                  auto tConstant = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(funcConstant);
+                  funcName = func->getPrgm().getFunctions()[getFunctionId(tConstant->getValue())]->getSymbol().getName();
+                } else if (funcConstant->isPointer() && conSize == 4) {
+                  //Do 32-bit sized ptr stuff.
+                }
+              }
+              //Hvordan håndteres result registret i et void call.
+              /*if (content.res && content.res->isRegister()) {
+              auto resReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              resName = resReg->getSymbol().getFullName();
+            }*/
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = callContent;
+              mmcregister.opcode = opCodeString;
+              mmcregister.regLocation = intermediateLocation;
+              registers.push_back(mmcregister);
+            }
           }
         }
       }
     }
-}
+  }
 }
 // Adds variable values to the varMap for StoreInstructions
 void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<std::string, std::vector<std::string>> &varMap){
@@ -226,6 +261,25 @@ void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<s
             if (varMap[name].empty()) {
               varMap[name].emplace_back("boolean");
             }
+          /*} else if (value->isAggregate()){
+            auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::AggregateConstant>(value)->string_repr();
+            std::vector<std::string> split;
+            boost::split(split, storeeValue, boost::is_any_of("$"));
+            std::string asciiValues = split[1];
+            std::string charValues;
+            for (int i= 0; i < asciiValues.length(); i+=3){
+              if (asciiValues[i] == ' '){
+                  i++;
+                }
+
+                std::string byte = asciiValues.substr(i, 3);
+                char char_byte = char(std::stoi(byte, nullptr, 16));
+                if ( char_byte == '\0'){
+                  break;
+                }
+                charValues += char_byte;
+            }
+            varMap[name].push_back(charValues);*/
           } else {
             std::cout << "Unsupported constant type " << value->getType()->get_type_name() << std::endl;
             varMap.erase(name);
