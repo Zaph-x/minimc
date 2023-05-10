@@ -239,7 +239,9 @@ void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<s
     if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
         auto content = get<12>(instr.getContent());
         auto name = content.variableName;
-        if (varMap.find(name) == varMap.end()) {
+        boost::replace_all(name, ".", "");
+
+      if (varMap.find(name) == varMap.end()) {
           varMap[name] = std::vector<std::string>();
         }
         if (content.storee->isConstant()) {
@@ -261,7 +263,7 @@ void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<s
             if (varMap[name].empty()) {
               varMap[name].emplace_back("boolean");
             }
-          /*} else if (value->isAggregate()){
+          } else if (value->isAggregate()){
             auto storeeValue = std::dynamic_pointer_cast<MiniMC::Model::AggregateConstant>(value)->string_repr();
             std::vector<std::string> split;
             boost::split(split, storeeValue, boost::is_any_of("$"));
@@ -279,7 +281,7 @@ void storeVarValue(const MiniMC::Model::Instruction& instr, std::unordered_map<s
                 }
                 charValues += char_byte;
             }
-            varMap[name].push_back(charValues);*/
+            varMap[name].push_back(charValues);
           } else {
             std::cout << "Unsupported constant type " << value->getType()->get_type_name() << std::endl;
             varMap.erase(name);
@@ -344,6 +346,9 @@ void write_variables(MiniMC::Model::Program program, std::unordered_map<std::str
   for (const auto& var : varMap) {
       varValues = "";
        std::string varName = var.first;
+       if(var.second.size()==1){
+         varValues += "nondet, ";
+       }
        for (auto value : var.second) {
          varValues += value + ", ";
        }
