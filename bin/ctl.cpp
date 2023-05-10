@@ -389,7 +389,22 @@ void store_transitions(MiniMC::Model::Program program, MiniMC::Model::Function_p
         }
         //transition_map[currentLocation].push_back(next_stored);
         auto edge_count = program.getFunction(func_name)->getCFA().getEdges().size();
-        transition_map[func_name + "-bb" + std::to_string(edge_count)].push_back(next_stored);
+        auto func_edges = program.getFunction(func_name)->getCFA().getEdges();
+        std::vector<std::string> ret_bb_edges = {};
+        for (auto &edge : func_edges) {
+          for (auto &edge_instr : edge->getInstructions()) {
+            if (edge_instr.getOpcode() == MiniMC::Model::InstructionCode::Ret) {
+              ret_bb_edges.push_back(std::to_string(edge->getTo()->getID()));
+            }
+          }
+        }
+        if (!ret_bb_edges.empty()) {
+          for (auto &ret_bb : ret_bb_edges) {
+            transition_map[func_name + "-bb" + ret_bb].push_back(next_stored);
+          }
+        } else {
+          transition_map[func_name + "-bb" + std::to_string(edge_count)].push_back(next_stored);
+        }
       }
     }
     if (std::find(known_locations.begin(), known_locations.end(), nextLocation) == known_locations.end()) {
