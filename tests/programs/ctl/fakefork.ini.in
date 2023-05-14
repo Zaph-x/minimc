@@ -1,0 +1,4 @@
+command=ctl
+inputfile=@CMAKE_CURRENT_BINARY_DIR@/fakefork.ll
+ctl.spec=unsafe_fork
+ctl.expect-false=1
