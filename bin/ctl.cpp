@@ -10,30 +10,28 @@
 #include <string>
 #include <array>
 #include <regex.h>
-#include "ctl-parser.hpp"
-#include "ctl-scanner.hpp"
-#define MMCM MiniMC::Model
+
 namespace po = boost::program_options;
 
 struct registerStruct{
   std::string destinationRegister, opcode, content, regLocation;
 };
 
-auto parse_query(const std::string& s) -> std::vector<ctl::syntax_tree_t> {
-    /*
-     * This function is taken from the ctl-expr project example code
-     * https://github.com/sillydan1/ctl-expr/blob/main/src/main.cpp
-     */
-    std::istringstream iss{s};
-    ctl::ast_factory factory{};
-    ctl::multi_query_builder builder{};
-    ctl::scanner scn{iss, std::cerr, &factory};
-    ctl::parser_args pargs{&scn, &factory, &builder};
-    ctl::parser p{pargs};
-    if(p.parse() != 0)
-      return {};
-    return builder.build().queries;
-}
+//auto parse_query(const std::string& s) -> std::vector<ctl::syntax_tree_t> {
+//    /*
+//     * This function is taken from the ctl-expr project example code
+//     * https://github.com/sillydan1/ctl-expr/blob/main/src/main.cpp
+//     */
+//    std::istringstream iss{s};
+//    ctl::ast_factory factory{};
+//    ctl::multi_query_builder builder{};
+//    ctl::scanner scn{iss, std::cerr, &factory};
+//    ctl::parser_args pargs{&scn, &factory, &builder};
+//    ctl::parser p{pargs};
+//    if(p.parse() != 0)
+//      return {};
+//    return builder.build().queries;
+//}
 
 std::string exec_cmd(const char* cmd) {
     std::array<char, 128> buffer;
@@ -59,6 +57,7 @@ std::string registerFormat(std::string regStr) {
   }
   return splitString[0];
 }
+
 void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers) {
   std::string funcName = func->getSymbol().getName();
 
@@ -533,6 +532,7 @@ namespace {
   struct LocalOptions {
     std::string spec{""};
     int keep_smv{0};
+    int expect_false{0};
   };
 
   LocalOptions opts;
@@ -552,10 +552,21 @@ namespace {
           break;
       }
     };
+    auto setExpectFalse = [&](const int& i) {
+      switch (i) {
+        case 0:
+          opts.expect_false = false;
+          break;
+        case 1:
+          opts.expect_false = true;
+          break;
+      }
+    };
 
     po::options_description desc("CTL options");
     desc.add_options()("ctl.spec", po::value<std::string>()->default_value("")->notifier(setSpec), "Set an inital CTL spec");
     desc.add_options()("ctl.keep-smv", po::value<int>()->default_value(0)->notifier(setKeepSMV), "Keep the SMV file after analysis (0 = no, 1 = yes)");
+    desc.add_options()("ctl.expect-false", po::value<int>()->default_value(0)->notifier(setExpectFalse), "Expect the CTL spec to be false (0 = no, 1 = yes)");
     od.add(desc);
   }
 
@@ -640,13 +651,25 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
   std::string output = exec_cmd("nusmv output_file.smv");
 
   if (opts.keep_smv == 0) std::remove(filename.c_str());
-
+  
+  bool failed = false;
+  if (output.find("is false") != std::string::npos) {
+    failed = true;
+  }
+  
   messager.message(output);
   
   if (output.find("Parse Error") != std::string::npos) {
     messager.message("!!! Parse Error !!!");
     return MiniMC::Host::ExitCodes::RuntimeError;
   } 
+  if (opts.expect_false == 1 && !failed) {
+    messager.message("!!! Expected CTL spec to be false !!!");
+    return MiniMC::Host::ExitCodes::RuntimeError;
+  } else if (opts.expect_false == 0 && failed) {
+    messager.message("!!! Expected CTL spec to be true !!!");
+    return MiniMC::Host::ExitCodes::RuntimeError;
+  }
   return MiniMC::Host::ExitCodes::AllGood;
 }
 
