@@ -50,6 +50,7 @@ namespace MiniMC {
         else if constexpr (InstructionData<i>::isComparison) {
           MiniMC::Support::Localiser loc("All operands to '%1%' must have same type..");
           MiniMC::Support::Localiser res_must_be_bool("The result of '%1% must be boolean.");
+          MiniMC::Support::Localiser must_be_integers("Comparisons must be integers");
 
           auto resType = content.res->getType();
           auto lType = content.op1->getType();
@@ -57,7 +58,9 @@ namespace MiniMC {
           if (lType != rType) {
             mess.message<MiniMC::Support::Severity::Error>(loc.format(i));
             return false;
-          } else if (resType->getTypeID() != MiniMC::Model::TypeID::Bool) {
+          }
+
+          else if (resType->getTypeID() != MiniMC::Model::TypeID::Bool) {
             mess.message<MiniMC::Support::Severity::Error>(res_must_be_bool.format(i));
             return false;
           }
@@ -237,6 +240,7 @@ namespace MiniMC {
         else if constexpr (i == InstructionCode::Load) {
           MiniMC::Support::Localiser must_be_pointer("'%1%' can only load from pointer types. ");
           MiniMC::Support::Localiser must_be_numeric("'%1%' can only load int, float, or doubles. ");
+          MiniMC::Support::Localiser must_be_integer_or_pointer("'%1%' can only load integers or pointers ");
 
           auto addr = content.addr->getType();
           if (addr->getTypeID() != MiniMC::Model::TypeID::Pointer &&
@@ -249,6 +253,7 @@ namespace MiniMC {
                 content.res->getType()->isFloat() ||
                 content.res->getType()->isDouble())) {
             mess.message<MiniMC::Support::Severity::Error>(must_be_numeric.format(MiniMC::Model::InstructionCode::Load));
+
             return false;
           }
 
@@ -276,6 +281,8 @@ namespace MiniMC {
             auto ptr = (*constant).template getValue(); // MiniMC::Support::CastToPtr (constant->getValue());
             bool is_func = prgm.functionExists(MiniMC::getFunctionId(ptr));
             MiniMC::Support::Localiser function_not_exists("Call references unexisting function: '%1%'");
+            MiniMC::Support::Localiser function_is_var_args("Call to var_args_functions '%1%'. Skipping parameter compatibility.");
+
             if (!is_func) {
               mess.message<MiniMC::Support::Severity::Error>(function_not_exists.format(MiniMC::getFunctionId(ptr)));
               return false;
@@ -302,7 +309,26 @@ namespace MiniMC {
                 return false;
               }
             }
+            if (!func->isVarArgs()) {
+              if (func->getParameters().size() != content.params.size()) {
+                mess.message<MiniMC::Support::Severity::Error>("Inconsistent number of parameters between call and function prototype");
+                return false;
+              }
 
+              auto nbParams = content.params.size();
+              auto it = func->getParameters().begin();
+
+              for (size_t j = 0; j < nbParams; j++, ++it) {
+                auto form_type = (*it)->getType();
+                auto act_type = content.params.at(j)->getType();
+                if (form_type != act_type) {
+                  mess.message<MiniMC::Support::Severity::Error>("Formal and actual parameters do not match typewise");
+                  return false;
+                }
+              }
+            } else {
+              mess.message<MiniMC::Support::Severity::Warning>(function_is_var_args.format(func->getSymbol().getName()));
+            }
             if (content.res) {
               auto resType = content.res->getType();
               if (resType != func->getReturnType()) {

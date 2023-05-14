@@ -20,14 +20,15 @@ void printBanner(std::ostream& os) {
 
 po::options_description transformOptions(SetupOptions& options) {
   po::options_description general("Transform Options");
-  general.add_options()
-    ("transform.expand_nondet", boost::program_options::bool_switch(&options.transform.expand_nondet) , "Expand Nondeterministic")
-    ("transform.unroll", boost::program_options::value(&options.transform.unrollLoops) , "Unroll (all) loops")
-    ("transform.inline", boost::program_options::value(&options.transform.inlineFunctions) , "Inline function calls for all entry_points");
-    
+  general.add_options()("transform.expand_nondet", boost::program_options::bool_switch(&options.transform.expand_nondet), "Expand Nondeterministic")("transform.unroll", boost::program_options::value(&options.transform.unrollLoops), "Unroll (all) loops")("transform.inline", boost::program_options::value(&options.transform.inlineFunctions), "Inline function calls for all entry_points");
 
   return general;
 }
+
+template <typename... Ts> // (7)
+struct Overload : Ts... {
+  using Ts::operator()...;
+};
 
 po::options_description loadOptions(SetupOptions& options) {
 
@@ -40,8 +41,7 @@ po::options_description loadOptions(SetupOptions& options) {
       throw MiniMC::Support::ConfigurationException("Can't find specificed Loader");
   };
 
-  general.add_options()
-    ("inputfile", po::value<std::string>(&options.load.inputname), "Input file");
+  general.add_options()("inputfile", po::value<std::string>(&options.load.inputname), "Input file");
   std::stringstream str;
   str << "Model Loader\n";
   int i = 0;
@@ -55,18 +55,23 @@ po::options_description loadOptions(SetupOptions& options) {
 
     po::options_description opt_arr(loader->getName());
     for (auto& opt : loader->getOptions()) {
+      std::visit(
+          Overload{
+              [loader, &opt_arr](MiniMC::Loaders::BoolOption& t) {
+                std::stringstream str;
+                str << loader->getName() << "." << t.name;
+                opt_arr.add_options()(str.str().c_str(), boost::program_options::bool_switch(&t.value), t.description.c_str());
+              },
+              [loader, &opt_arr](auto& t) {
+                std::stringstream str;
+                str << loader->getName() << "." << t.name;
+                opt_arr.add_options()(str.str().c_str(), boost::program_options::value(&t.value), t.description.c_str());
+              },
 
-      std::visit([loader, &opt_arr](auto& t) {
-        std::stringstream str;
-        str << loader->getName() << "." << t.name;
-
-        opt_arr.add_options()(str.str().c_str(), boost::program_options::value(&t.value), t.description.c_str());
-      },
-	opt
-	);
+          },
+          opt);
     }
-      general.add (opt_arr);
-    
+    general.add(opt_arr);
   }
 
   return general;
@@ -98,7 +103,6 @@ po::options_description smtOptions(SetupOptions& options) {
   return smt;
 }
 
-
 po::options_description defOptions(SetupOptions& options) {
   auto selCommand = [&options](const std::string& sel) {
     if (isCommand(sel)) {
@@ -114,10 +118,9 @@ po::options_description defOptions(SetupOptions& options) {
 
 po::options_description cpaOptions(std::vector<int>& select) {
   po::options_description general("CPA Options");
-  general.add_options ()
-    ("cpa", po::value<std::vector<int>>(&select), "CPA\n 2: Concrete\n"
+  general.add_options()("cpa", po::value<std::vector<int>>(&select), "CPA\n 2: Concrete\n"
 #ifdef MINIMC_SYMBOLIC
-                                                                                   "\t 3: PathFormula\n"
+                                                                     "\t 3: PathFormula\n"
 #endif
   );
 
@@ -166,7 +169,6 @@ bool parseOptions(int argc, char* argv[], SetupOptions& opt) {
   options.add(defOptions(opt));
   addCommandOptions(general);
   options.add(general);
-
 
   po::positional_options_description pos;
   pos.add("inputfile", 1).add("command", 1);

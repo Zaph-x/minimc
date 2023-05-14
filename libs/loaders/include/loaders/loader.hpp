@@ -4,6 +4,8 @@
 #include "model/cfg.hpp"
 #include "model/controller.hpp"
 #include "support/exceptions.hpp"
+#include "support/localisation.hpp"
+
 
 #include <memory>
 #include <string>
@@ -16,7 +18,14 @@ namespace MiniMC {
 
     class LoadError : public MiniMC::Support::ConfigurationException {
     public:
-      LoadError() : ConfigurationException("Failed to load program") {}
+      LoadError(const std::string& mess = "Failed to load program" ) : ConfigurationException(mess) {}
+    };
+
+    class VariadicFunctionsNotSupported : public LoadError {
+    public:
+      VariadicFunctionsNotSupported(const std::string& name) : LoadError(
+									 MiniMC::Support::Localiser("Function '%1%' is varidic. This is not supported by MiniMC").format (name)) 
+      {}
     };
 
     struct LoadResult {
@@ -25,19 +34,24 @@ namespace MiniMC {
 
     template <class T>
     struct TOption {
+      TOption (const std::string name,
+	       const std::string descr,
+	       T value) : name(name), description(descr),value(value) {}
       std::string name;
       std::string description;
       T value;
     };
     
     using IntOption = TOption<std::size_t>;
+    using BoolOption = TOption<bool>;
     using StringOption = TOption<std::string>;
     using VecStringOption = TOption<std::vector<std::string>>;
     
     
     using LoaderOption = std::variant<IntOption,
                                       StringOption,
-				      VecStringOption>;
+				      VecStringOption,
+				      BoolOption>;
 
     struct Loader {
       Loader(MiniMC::Model::TypeFactory_ptr& tfac,
@@ -62,6 +76,12 @@ namespace MiniMC {
       virtual Loader_ptr makeLoader(MiniMC::Model::TypeFactory_ptr& tfac, Model::ConstantFactory_ptr cfac) = 0;
       auto& getName() const { return name; }
       auto& getOptions () {return options;}
+
+      template<class T>
+      auto& getOption (std::size_t i) {return std::get<T> (options.at (i));}
+    protected:
+      template<class T,class... Args>
+      void addOption (Args... args) {options.push_back (T{args...}); }
     private:
       std::string name;
       std::vector<LoaderOption> options;

@@ -64,7 +64,7 @@ namespace MiniMC {
           writeState.getStackControl().getValueLookup ().saveValue(res, operations.Eq(lval, rval));
         else if constexpr (op == MiniMC::Model::InstructionCode::ICMP_NEQ)
           writeState.getStackControl().getValueLookup ().saveValue(res, operations.NEq(lval, rval));
-
+	
         else
           throw NotImplemented<op>();
 
@@ -86,11 +86,11 @@ namespace MiniMC {
           case MiniMC::Model::TypeID::I64:
             return runCMPAdd<op, T, typename T::I64>(instr, writeState, ops);
 	default:
-	  throw MiniMC::Support::Exception ("Throw");
+	  throw MiniMC::Support::Exception ("Comparisons operations not implemented for pointers...yet");
 	}
         throw NotImplemented<op>();
       }
-
+      
       template <MiniMC::Model::InstructionCode op, class T, class Operations, class Caster>
       inline Status runInstruction(const MiniMC::Model::Instruction& instr, VMState<T>& writeState, Operations& operations, Caster& caster, const MiniMC::Model::Program&) requires MiniMC::Model::InstructionData<op>::isPointer {
         auto& content = instr.getOps<op>();
@@ -423,6 +423,9 @@ namespace MiniMC {
 						   }}
 						 ,*content.function
 						 );
+	  if (func->isVarArgs()) {
+	    throw MiniMC::Support::Exception("Vararg functions are not supported");						   
+	  }
 	  
 	  auto& vstack = func->getRegisterStackDescr();
 	  
@@ -573,7 +576,7 @@ namespace MiniMC {
 
     } // namespace Impl
 
-    template <class T, class Operations, class Caster>
+    template <class T, class Operations, class Caster>     requires VMCompatible<T,Operations,Caster>
     Status Engine<T, Operations, Caster>::execute(const MiniMC::Model::InstructionStream& instr,
                                                   VMState<T>& wstate) {
       auto end = instr.end();

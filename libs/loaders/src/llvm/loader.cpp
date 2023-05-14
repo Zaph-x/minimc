@@ -87,7 +87,9 @@ namespace MiniMC {
       return program.addFunction(name, {},
                                  program.getTypeFactory().makeVoidType(),
                                  std::move(vstack),
-                                 std::move(cfg));
+                                 std::move(cfg),
+				 false
+				 );
     }
     
 
@@ -97,8 +99,10 @@ namespace MiniMC {
       LLVMLoader (MiniMC::Model::TypeFactory_ptr& tfac,
 		  Model::ConstantFactory_ptr& cfac,
 		  std::size_t stacksize,
-		  std::vector<std::string> entry
-		  ) : Loader (tfac,cfac),stacksize(stacksize),entry(entry) {}
+		  std::vector<std::string> entry,
+		  bool disablePromotion,
+		  bool printPass
+		  ) : Loader (tfac,cfac),stacksize(stacksize),entry(entry),disablePromotion(disablePromotion),printLLVMPass(printPass) {}
       LoadResult loadFromFile(const std::string& file) override {
         std::fstream str;
         str.open(file);
@@ -233,7 +237,7 @@ namespace MiniMC {
 		
 		edgebuilder.addInstr<MiniMC::Model::InstructionCode::NonDet> ({.res = retVar, .min = min,.max=max});
 		edgebuilder.addInstr<MiniMC::Model::InstructionCode::Ret> ({retVar});
-			
+		
 	      }
 	      
 	      else {
@@ -242,7 +246,7 @@ namespace MiniMC {
 
 	    }
 	    
-	    prgm->addFunction(F.getName().str(), params, returnTy, std::move(variablestack), std::move(cfg));
+	    prgm->addFunction(F.getName().str(), params, returnTy, std::move(variablestack), std::move(cfg),F.isVarArg ());
 	  }
 
 	  else  {
@@ -362,7 +366,7 @@ namespace MiniMC {
 		
 	      }
 	    }
-	    prgm->addFunction(F.getName().str(), params, returnTy, std::move(variablestack), std::move(cfg));
+	    prgm->addFunction(F.getName().str(), params, returnTy, std::move(variablestack), std::move(cfg),F.isVarArg ());
 	  }
 	}
       }
@@ -392,14 +396,15 @@ namespace MiniMC {
 
         funcmanagerllvm.addPass(ConstExprRemover());
         funcmanagerllvm.addPass(RemoveUnusedInstructions());
-        funcmanager.addPass(llvm::PromotePass());
+	if (!disablePromotion)
+	  funcmanager.addPass(llvm::PromotePass());
         funcmanagerllvm.addPass(GetElementPtrSimplifier());
         funcmanagerllvm.addPass(InstructionNamer());
-        
         mpm.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(funcmanagerllvm)));
-	// mpm.addPass(llvm::PrintModulePass(llvm::errs()));
 	mpm.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(funcmanager)));
-	
+	if (printLLVMPass)
+	  mpm.addPass(llvm::PrintModulePass(llvm::errs()));
+        
         mpm.run(module, mam);
 	
       }
@@ -437,44 +442,26 @@ namespace MiniMC {
     private:
       std::size_t stacksize;
       std::vector<std::string> entry;
+      bool disablePromotion;
+      bool printLLVMPass;
     };
 
 
     class LLVMLoadRegistrar : public LoaderRegistrar {
     public:
-      LLVMLoadRegistrar () : LoaderRegistrar("LLVM",{IntOption{.name="stack",
-							       .description ="StackSize",
-							       .value = 200
-	},
-						     VecStringOption {.name = "entry",
-								      .description="Entry point function",
-								      .value = {}
-						     }
-	}) {
+      LLVMLoadRegistrar () : LoaderRegistrar("LLVM") {
+	addOption<IntOption> ("stack","StackSize",200uL);
+	addOption<VecStringOption> ("entry","Entry point function",std::vector<std::string> {});
+	addOption<BoolOption> ("disable_promote_pass","Disable the promotion of allocas to registers",false);
+	addOption<BoolOption> ("print","Print LLVM module to stderr",false);
       }
       
       Loader_ptr makeLoader (MiniMC::Model::TypeFactory_ptr& tfac, Model::ConstantFactory_ptr cfac) override {
-	auto stacksize = std::visit([](auto& t)->std::size_t {
-	  using T = std::decay_t<decltype(t)>;
-	  if constexpr (std::is_same_v<T,IntOption>)
-	    return t.value;
-	  else {
-	    throw MiniMC::Support::Exception ("Horrendous error");
-	  }
-	},
-	  getOptions().at(0)
-	  );
-	auto entry = std::visit([](auto& t)->std::vector<std::string> {
-	  using T = std::decay_t<decltype(t)>;
-	  if constexpr (std::is_same_v<T,VecStringOption>)
-	    return t.value;
-	  else {
-	    throw MiniMC::Support::Exception ("Horrendous error");
-	  }
-	},
-	  getOptions().at(1)
-	  );
-	return std::make_unique<LLVMLoader> (tfac,cfac,stacksize,entry);
+	auto stacksize = getOption<IntOption> (0).value;
+	auto entry = getOption<VecStringOption> (1).value;
+	auto disablePromotion = getOption<BoolOption> (2).value;
+	auto printPass = getOption<BoolOption> (3).value;	
+	return std::make_unique<LLVMLoader> (tfac,cfac,stacksize,entry,disablePromotion,printPass);
       }
     };
 
