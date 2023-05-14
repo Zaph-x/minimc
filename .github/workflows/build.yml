@@ -11,7 +11,7 @@ jobs:
     - name: install deps
       run: apt update -y && apt install -y bison libtinfo-dev zlib1g-dev git g++-12 cmake libboost-dev libboost-program-options-dev cvc4 libcvc4-dev libcln-dev zip flex
     - name: build
-      run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=g++-12 -DCMAKE_BUILD_TYPE=Release --build ..
+      run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=g++-12 -DCMAKE_BUILD_TYPE=Release build ..
     - name: test
       run: cd build && ctest --output-on-failure
     - name: package
