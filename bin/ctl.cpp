@@ -17,21 +17,6 @@ struct registerStruct{
   std::string destinationRegister, opcode, content, regLocation;
 };
 
-//auto parse_query(const std::string& s) -> std::vector<ctl::syntax_tree_t> {
-//    /*
-//     * This function is taken from the ctl-expr project example code
-//     * https://github.com/sillydan1/ctl-expr/blob/main/src/main.cpp
-//     */
-//    std::istringstream iss{s};
-//    ctl::ast_factory factory{};
-//    ctl::multi_query_builder builder{};
-//    ctl::scanner scn{iss, std::cerr, &factory};
-//    ctl::parser_args pargs{&scn, &factory, &builder};
-//    ctl::parser p{pargs};
-//    if(p.parse() != 0)
-//      return {};
-//    return builder.build().queries;
-//}
 
 std::string exec_cmd(const char* cmd) {
     std::array<char, 128> buffer;
@@ -45,17 +30,39 @@ std::string exec_cmd(const char* cmd) {
     }
     return result;
 }
-std::string registerFormat(std::string regStr) {
-  std::vector<std::string> splitString;
-  std::string intermediateString = regStr;
-  boost::replace_all(intermediateString, ".", "depth");
-  boost::split(splitString, intermediateString, boost::is_any_of(" "));
-  splitString[0].erase(0,1);
 
-  if(splitString[0].empty() || std::isdigit(splitString[0][0])){
-    splitString[0] = splitString[0].substr(1);
-  }
-  return splitString[0];
+std::string format_immediate_value(std::string value_to_format) {
+    std::vector<std::string> split_string;
+    std::string intermediate = value_to_format;
+    boost::split(split_string, intermediate, boost::is_any_of(" "));
+
+    auto value = split_string[0];
+    boost::replace_all(value, "<0x", "");
+    if (value.empty()) {
+        throw std::exception();
+    }
+    return value;
+}
+
+std::string format_register(std::string regStr) {
+    std::vector<std::string> splitString;
+    std::string intermediateString = regStr;
+    boost::replace_all(intermediateString, ".", "_");
+    boost::replace_all(intermediateString, ":tmp", "-reg");
+    boost::split(splitString, intermediateString, boost::is_any_of(" "));
+    splitString[0].erase(0,1);
+
+    if(splitString[0].empty() || std::isdigit(splitString[0][0])){
+        splitString[0] = splitString[0].substr(1);
+    }
+    return splitString[0];
+}
+
+std::string format_unknown(std::string& func_name, std::string unknown_value) {
+    if (boost::contains(unknown_value, func_name)) {
+        return format_register(unknown_value);
+    }
+    return format_immediate_value(unknown_value);
 }
 
 void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<registerStruct>& registers) {
@@ -82,11 +89,15 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               std::ostringstream oss;
               oss << instr.getOpcode();
               auto opCodeString = oss.str();
-              std::string op1 = registerFormat(content.op1->string_repr());
-              std::string op2 = registerFormat(content.op2->string_repr());
+              std::string op1 = format_unknown(funcName, content.op1->string_repr());
+              std::string op2 = format_unknown(funcName, content.op2->string_repr());
 
               auto contentString = op1 + "_" + op2;
-              boost::replace_all(contentString, ":", "-");
+
+              if (opCodeString.starts_with("ICMP_")) {
+                // todo Compare here.
+              }
+
               mmcregister.destinationRegister = resName;
               mmcregister.content = contentString;
               mmcregister.opcode = opCodeString;
@@ -118,10 +129,12 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               auto nonDetReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
               std::vector<std::string> splitResult;
               boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
-              auto resName = splitResult[0] + "-" + nonDetReg->getSymbol().prefix().getName();
+              auto symbol_prefix = nonDetReg->getSymbol().prefix().getName();
+              boost::replace_all(symbol_prefix, "_", "");
+              auto resName = splitResult[0] + "-" + symbol_prefix;
               std::ostringstream ossNonDet;
               ossNonDet << instr.getOpcode();
-              auto nonDet = registerFormat(content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments);
+              auto nonDet = format_register(content.res->string_repr() + content.min->string_repr() + content.max->string_repr() + content.arguments);
               mmcregister.destinationRegister = resName;
               mmcregister.content = nonDetString;
               mmcregister.opcode = nonDet;
@@ -138,7 +151,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               auto resName = splitResult[0] + "-" + loadReg->getSymbol().prefix().getName();
               std::ostringstream ossload;
               ossload << instr.getOpcode();
-              auto load = registerFormat(content.addr->string_repr());
+              auto load = format_register(content.addr->string_repr());
               mmcregister.destinationRegister = resName;
               mmcregister.content = loadString;
               mmcregister.opcode = load;
@@ -155,7 +168,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               auto resName = splitResult[0] + "-" + storeReg->getSymbol().prefix().getName();
               std::ostringstream ossstore;
               ossstore << instr.getOpcode();
-              auto store = registerFormat(content.addr->string_repr() + content.storee->string_repr() + content.variableName);
+              auto store = format_register(content.addr->string_repr() + content.storee->string_repr() + content.variableName);
               mmcregister.destinationRegister = resName;
               mmcregister.content = storeString;
               mmcregister.opcode = store;
@@ -176,16 +189,18 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
               boost::split(splitReturnVal, location->getInfo().getName(), boost::is_any_of(":"));
               resName = splitReturnVal[0] + "-" + returnVal->getSymbol().prefix().getName();
               boost::replace_all(resName, ":", "-");
-              callContent += content.res->getType()->get_type_name() + "_";
+              auto call_content_end = content.res->getType()->get_type_name();
+              boost::replace_all(call_content_end, "_", "");
+              callContent += call_content_end;
             }
 
             callContent += content.argument;
             if (content.params.size() > 1) {
-              for (int i = 1; i < content.params.size(); i++) {
+              for (unsigned long i = 1L; i < content.params.size(); i++) {
 
                 if (content.params[i]->isConstant()) {
                   auto paramsConstant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(content.params[i]);
-                  if (paramsConstant->isPointer() & paramsConstant->getSize() == 8) {
+                  if (paramsConstant->isPointer() && paramsConstant->getSize() == 8L) {
                     auto paramsPointer = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(paramsConstant);
                     auto paramsPointerValue = paramsPointer->getValue();
                     //Pointer struct segments use ascii values to describe the content. 72 = H = Heap. 70 = F = Function and so on.
@@ -199,7 +214,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr & func, std::vector<reg
                       }
                     }
                 } else {
-                  callContent += "_" + registerFormat(content.params[i]->string_repr());
+                  callContent += "_" + format_register(content.params[i]->string_repr());
 
                 }
                 boost::replace_all(callContent, ":", "-");
@@ -512,7 +527,7 @@ void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
     std::vector<registerStruct> varRegs;
     std::vector<std::string> known_locations;
     write_module("main", smv);
-    for(const auto func : program.getFunctions()){
+    for(const auto& func : program.getFunctions()){
       functionRegisters(func, varRegs);
     }
     setup_variables(program, varMap, initMap, smv);
