@@ -664,16 +664,33 @@ void write_next(MiniMC::Model::Program program, std::unordered_map<std::string, 
   }
 }
 void write_registerVar_next(std::string& smv, std::unordered_map<std::string, std::vector<registerStruct>> varRegs) {
+  std::string currentVarName = "";
+  std::string lastVar = "nonemptyString!.";
+
   for (const auto& var : varRegs) {
+    currentVarName = "";
     for (auto &reg : var.second) {
-      std::string varName = reg.destinationRegister;
-      smv += "ASSIGN next(" + varName + ") :=\n";
-      smv += "  case\n";
-      smv += "    " + varName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
-      smv += "    TRUE : " + varName + ";\n";
-      smv += "  esac;\n";
+      if(lastVar != currentVarName && currentVarName != reg.destinationRegister){
+        currentVarName = reg.destinationRegister;
+        smv += "ASSIGN next(" + currentVarName + ") :=\n";
+        smv += "  case\n";
+        smv += "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+      } else if(currentVarName == reg.destinationRegister){
+        smv += "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+      } else if(lastVar != currentVarName && currentVarName != reg.destinationRegister){
+        smv += "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+        smv += "    " + currentVarName + " : " + "TRUE;\n";
+        smv += "  esac;\n";
+      } else {
+        smv += "    " + currentVarName + " : " + "TRUE;\n";
+        smv += "  esac;\n";
+      }
+      lastVar = reg.destinationRegister;
     }
   }
+  smv += "    " + currentVarName + " : " + "TRUE;\n";
+  smv += "  esac;\n";
+
 }
 
 void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
