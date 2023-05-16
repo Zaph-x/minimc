@@ -26,6 +26,10 @@ namespace MiniMC {
       auto end () const {
 	return blocks.end ();
       }
+
+      HeapBlock getIndex(int a){
+        return blocks[a];
+      }
       
     private:
       std::vector<HeapBlock> blocks;
