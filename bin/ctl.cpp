@@ -670,15 +670,17 @@ void write_registerVar_next(std::string& smv, std::unordered_map<std::string, st
   for (const auto& var : varRegs) {
     currentVarName = "";
     for (auto &reg : var.second) {
+      std::string transitionString = "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+
       if(lastVar != currentVarName && currentVarName != reg.destinationRegister){
         currentVarName = reg.destinationRegister;
         smv += "ASSIGN next(" + currentVarName + ") :=\n";
         smv += "  case\n";
-        smv += "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+        smv += transitionString;
       } else if(currentVarName == reg.destinationRegister){
-        smv += "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+        smv += transitionString;
       } else if(lastVar != currentVarName && currentVarName != reg.destinationRegister){
-        smv += "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+        smv += transitionString;
         smv += "    " + currentVarName + " : " + "TRUE;\n";
         smv += "  esac;\n";
       } else {
