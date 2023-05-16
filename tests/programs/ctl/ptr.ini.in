@@ -1,0 +1,4 @@
+command=ctl
+inputfile=@CMAKE_CURRENT_BINARY_DIR@/ptr.ll
+ctl.spec=EF (locations = main-bb0)
+ctl.expect-false=0
