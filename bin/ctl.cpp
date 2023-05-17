@@ -439,6 +439,7 @@ void setup_variables(const MiniMC::Model::Program program, std::unordered_map<st
     storeVarValue(instr, varMap);
   }
   for (auto var : varMap) {
+    if (var.second.size() == 1) continue;
     initMap[var.first] = "ASSIGN init(" + var.first + ") := " + var.second[0] + ";\n";
   }
 }
@@ -522,17 +523,6 @@ void write_variables(MiniMC::Model::Program program, std::unordered_map<std::str
       bool has_changed = false;
       std::string new_contents = "";
       new_contents = get_value_mappings(program, varRegs, contents, has_changed);
-//      for (const auto& func : program.getFunctions()) {
-//        std::string funcName = func->getSymbol().getName();
-//        if (contents.find(funcName) != std::string::npos) {
-//          std::cout << "Getting for register " << contents << std::endl;
-//          has_changed = true;
-//          for (auto& itm : get_for_register(funcName, contents, varRegs)) {
-//            new_contents += itm.content + ", ";
-//          }
-//
-//        }
-//      }
 
       if (!new_contents.empty() && has_changed) {
         regStruct.content = new_contents;
@@ -560,6 +550,7 @@ void write_init(std::unordered_map<std::string, std::string> initMap, std::strin
     used_funcs.push_back(kv.first);
   }
   for (auto& regStruct : varRegs) {
+
     for (auto& reg : regStruct.second) {
       if (std::find(used_regs.begin(), used_regs.end(), reg.destinationRegister) == used_regs.end()) {
         std::string contentString = reg.content;
@@ -567,6 +558,20 @@ void write_init(std::unordered_map<std::string, std::string> initMap, std::strin
         std::vector<std::string> register_result;
         boost::split(function_result, contentString, boost::is_any_of("-"));
         boost::split(register_result, contentString, boost::is_any_of(" "));
+        if (get_for_register(function_result[0], register_result[0], varRegs).size() == 1) {
+          used_regs.push_back(reg.destinationRegister);
+          continue;
+        }
+        function_result.clear();
+//        register_result.clear();
+
+        boost::split(function_result, reg.regLocation, boost::is_any_of("-"));
+        if (get_for_register(function_result[0], reg.destinationRegister, varRegs).size() == 1) {
+          used_regs.push_back(reg.destinationRegister);
+          continue;
+        }
+
+
         if (std::find(used_funcs.begin(), used_funcs.end(), function_result[0]) != used_funcs.end()){
           smv += "ASSIGN init(" + reg.destinationRegister + ") :=" + get_for_register(function_result[0], register_result[0], varRegs)[0].content + ";\n";
         } else {
@@ -698,9 +703,24 @@ void write_registerVar_next(std::string& smv, std::unordered_map<std::string, st
   std::string currentVarName = "";
   std::string lastVar = "nonemptyString!.";
 
-  for (const auto& var : varRegs) {
+  for (auto& var : varRegs) {
     currentVarName = "";
     for (auto &reg : var.second) {
+      std::string contentString = reg.content;
+      std::vector<std::string> function_result;
+      std::vector<std::string> register_result;
+      boost::split(function_result, contentString, boost::is_any_of("-"));
+      boost::split(register_result, contentString, boost::is_any_of(" "));
+      if (get_for_register(function_result[0], register_result[0], varRegs).size() == 1) {
+        continue;
+      }
+      function_result.clear();
+//        register_result.clear();
+
+      boost::split(function_result, reg.regLocation, boost::is_any_of("-"));
+      if (get_for_register(function_result[0], reg.destinationRegister, varRegs).size() == 1) {
+        continue;
+      }
       std::string transitionString = "    " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
 
       if(lastVar != currentVarName && currentVarName != reg.destinationRegister){
@@ -721,9 +741,10 @@ void write_registerVar_next(std::string& smv, std::unordered_map<std::string, st
       lastVar = reg.destinationRegister;
     }
   }
-  smv += "    TRUE : " + currentVarName + ";\n";
-  smv += "  esac;\n";
-
+  if (!currentVarName.empty()){
+    smv += "    TRUE : " + currentVarName + ";\n";
+    smv += "  esac;\n";
+  }
 }
 
 void writeToFile(const MiniMC::Model::Program program, std::string fileName) {
