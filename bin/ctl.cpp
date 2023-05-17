@@ -86,16 +86,35 @@ void add_range(std::string& location, std::string& dest, std::string &funcName, 
   if (lowerInt > upperInt) {
     std::swap(lowerInt, upperInt);
   }
-  for (int i = lowerInt; i <= upperInt; i++) {
-    registerStruct mmcregister;
-    mmcregister.destinationRegister = dest;
-    mmcregister.opcode = "Range";
-    mmcregister.content = std::to_string(i);
-    mmcregister.regLocation = location;
-    mmcregister.condition = std::to_string(i) + " < " + std::to_string(i+1);
-    // write every property to stdout
 
-    regs[funcName].push_back(mmcregister);
+  registerStruct mmcregister;
+  mmcregister.destinationRegister = dest;
+  mmcregister.opcode = "Range";
+  mmcregister.content = std::to_string(lowerInt);
+  mmcregister.regLocation = location;
+  mmcregister.condition = dest + " = undef";
+  regs[funcName].push_back(mmcregister);
+
+  if (lowerInt < upperInt) {
+    for (int i = lowerInt+1; i <= upperInt; i++) {
+      mmcregister.destinationRegister = dest;
+      mmcregister.opcode = "Range";
+      mmcregister.content = std::to_string(i);
+      mmcregister.regLocation = location;
+      mmcregister.condition = dest + " != undef & " + dest + " = " + std::to_string(i-1);
+
+      regs[funcName].push_back(mmcregister);
+    }
+  } else {
+    for (int i = lowerInt-1; i >= upperInt; i--) {
+      mmcregister.destinationRegister = dest;
+      mmcregister.opcode = "Range";
+      mmcregister.content = std::to_string(i);
+      mmcregister.regLocation = location;
+      mmcregister.condition = dest + " != undef & " + dest + " = " + std::to_string(i+1);
+
+      regs[funcName].push_back(mmcregister);
+    }
   }
 
 }
@@ -245,6 +264,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
               mmcregister.destinationRegister = resName;
               mmcregister.content = nonDetString;
               mmcregister.opcode = nonDet;
+              mmcregister.condition = "TRUE";
               registers[funcName].push_back(mmcregister);
             }
           }
@@ -670,7 +690,7 @@ void write_registerVar_next(std::string& smv, std::unordered_map<std::string, st
   for (const auto& var : varRegs) {
     currentVarName = "";
     for (auto &reg : var.second) {
-      std::string transitionString = "    " + currentVarName + " = " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
+      std::string transitionString = "    " + reg.condition + " & ( locations = " + reg.regLocation + ") : " + reg.content + "; \n";
 
       if(lastVar != currentVarName && currentVarName != reg.destinationRegister){
         currentVarName = reg.destinationRegister;
@@ -684,13 +704,13 @@ void write_registerVar_next(std::string& smv, std::unordered_map<std::string, st
         smv += "    " + currentVarName + " : " + "TRUE;\n";
         smv += "  esac;\n";
       } else {
-        smv += "    " + currentVarName + " : " + "TRUE;\n";
+        smv += "    TRUE : " + currentVarName + + ";\n";
         smv += "  esac;\n";
       }
       lastVar = reg.destinationRegister;
     }
   }
-  smv += "    " + currentVarName + " : " + "TRUE;\n";
+  smv += "    TRUE : " + currentVarName + ";\n";
   smv += "  esac;\n";
 
 }
