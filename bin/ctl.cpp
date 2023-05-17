@@ -83,16 +83,13 @@ void add_range(std::string& location, std::string& dest, std::string &funcName, 
   int upperInt = 0;
   if (!lower.empty() && std::find_if(lower.begin(), lower.end(), [](unsigned char c) { return !std::isdigit(c); }) == lower.end()) lowerInt = std::stoi(lower);
   if (!upper.empty() && std::find_if(upper.begin(), upper.end(), [](unsigned char c) { return !std::isdigit(c); }) == upper.end()) upperInt = std::stoi(upper);
-  if (lowerInt > upperInt) {
-    std::swap(lowerInt, upperInt);
-  }
 
   registerStruct mmcregister;
   mmcregister.destinationRegister = dest;
   mmcregister.opcode = "Range";
   mmcregister.content = std::to_string(lowerInt);
   mmcregister.regLocation = location;
-  mmcregister.condition = dest + " = undef";
+  mmcregister.condition = dest + " = " + mmcregister.content;
   regs[funcName].push_back(mmcregister);
 
   if (lowerInt < upperInt) {
@@ -101,7 +98,7 @@ void add_range(std::string& location, std::string& dest, std::string &funcName, 
       mmcregister.opcode = "Range";
       mmcregister.content = std::to_string(i);
       mmcregister.regLocation = location;
-      mmcregister.condition = dest + " != undef & " + dest + " = " + std::to_string(i-1);
+      mmcregister.condition = dest + " != " + std::to_string(i) + " & " + dest + " = " + std::to_string(i-1);
 
       regs[funcName].push_back(mmcregister);
     }
@@ -111,12 +108,11 @@ void add_range(std::string& location, std::string& dest, std::string &funcName, 
       mmcregister.opcode = "Range";
       mmcregister.content = std::to_string(i);
       mmcregister.regLocation = location;
-      mmcregister.condition = dest + " != undef & " + dest + " = " + std::to_string(i+1);
+      mmcregister.condition = dest + " != " + std::to_string(i) + " & " + dest + " = " + std::to_string(i+1);
 
       regs[funcName].push_back(mmcregister);
     }
   }
-
 }
 
 void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_map<std::string, std::vector<registerStruct>>& registers) {
@@ -265,6 +261,8 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
               mmcregister.content = nonDetString;
               mmcregister.opcode = nonDet;
               mmcregister.condition = "TRUE";
+              registers[funcName].push_back(mmcregister);
+              mmcregister.content = "undef";
               registers[funcName].push_back(mmcregister);
             }
           }
@@ -481,16 +479,18 @@ void write_locations(MiniMC::Model::Program program, std::unordered_map<std::str
   smv += "VAR locations: {" + locations + "};\n";
 }
 
-std::string get_value_mappings(MiniMC::Model::Program &prg, std::unordered_map<std::string, std::vector<registerStruct>> &varMap, std::string &contents) {
+std::string get_value_mappings(MiniMC::Model::Program &prg, std::unordered_map<std::string, std::vector<registerStruct>> &varMap, std::string &contents, bool &has_changed) {
+  std::string new_contents ="";
   for (const auto& func : prg.getFunctions()) {
     std::string funcName = func->getSymbol().getName();
     if (contents.find(funcName) != std::string::npos) {
+      has_changed = true;
       for (auto& itm : get_for_register(funcName, contents, varMap)) {
-        contents += ", " + itm.content;
+        new_contents += itm.content+ ", ";
       }
     }
   }
-  return contents;
+  return new_contents.substr(0, new_contents.size() - 2);
 }
 
 void write_variables(MiniMC::Model::Program program, std::unordered_map<std::string, std::vector<std::string>>& varMap, std::string& smv, std::unordered_map<std::string, std::vector<registerStruct>> varRegs) {
@@ -520,28 +520,26 @@ void write_variables(MiniMC::Model::Program program, std::unordered_map<std::str
       
       // check if contents contains the name of any function in the program
       bool has_changed = false;
-      std::string new_contents = "undef";
-      for (const auto& func : program.getFunctions()) {
-        std::string funcName = func->getSymbol().getName();
-        if (contents.find(funcName) != std::string::npos) {
-          std::cout << "Getting for register " << contents << std::endl;
-          has_changed = true;
-          for (auto& itm : get_for_register(funcName, contents, varRegs)) {
-            new_contents += ", " + itm.content;
-          }
-        }
-      }
+      std::string new_contents = "";
+      new_contents = get_value_mappings(program, varRegs, contents, has_changed);
+//      for (const auto& func : program.getFunctions()) {
+//        std::string funcName = func->getSymbol().getName();
+//        if (contents.find(funcName) != std::string::npos) {
+//          std::cout << "Getting for register " << contents << std::endl;
+//          has_changed = true;
+//          for (auto& itm : get_for_register(funcName, contents, varRegs)) {
+//            new_contents += itm.content + ", ";
+//          }
+//
+//        }
+//      }
 
-      if (has_changed) {
+      if (!new_contents.empty() && has_changed) {
         regStruct.content = new_contents;
       }
 
       if (!register_mappings.contains(varRegName)) {
-        if (boost::contains(regStruct.content, "undef")) {
-          register_mappings[varRegName] = regStruct.content;
-        } else {
-          register_mappings[varRegName] = "undef, " + regStruct.content;
-        }
+        register_mappings[varRegName] = regStruct.content;
       } else {
         register_mappings[varRegName] += ", " + regStruct.content;
       }
@@ -557,10 +555,23 @@ void write_init(std::unordered_map<std::string, std::string> initMap, std::strin
     smv += init.second;
   }
   std::vector<std::string> used_regs;
+  std::vector<std::string> used_funcs;
+  for (auto& kv : varRegs){
+    used_funcs.push_back(kv.first);
+  }
   for (auto& regStruct : varRegs) {
     for (auto& reg : regStruct.second) {
       if (std::find(used_regs.begin(), used_regs.end(), reg.destinationRegister) == used_regs.end()) {
-        smv += "ASSIGN init(" + reg.destinationRegister + ") := undef;\n";
+        std::string contentString = reg.content;
+        std::vector<std::string> function_result;
+        std::vector<std::string> register_result;
+        boost::split(function_result, contentString, boost::is_any_of("-"));
+        boost::split(register_result, contentString, boost::is_any_of(" "));
+        if (std::find(used_funcs.begin(), used_funcs.end(), function_result[0]) != used_funcs.end()){
+          smv += "ASSIGN init(" + reg.destinationRegister + ") :=" + get_for_register(function_result[0], register_result[0], varRegs)[0].content + ";\n";
+        } else {
+          smv += "ASSIGN init(" + reg.destinationRegister + ") :=" + reg.content + ";\n";
+        }
         used_regs.push_back(reg.destinationRegister);
       }
     }
