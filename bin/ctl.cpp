@@ -143,11 +143,12 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
               std::string op2 = format_unknown(funcName, content.op2->string_repr());
 
               auto contentString = op1 + "_" + op2;
-
+              
               if (opCodeString.starts_with("ICMP_")) {
                 add_range(intermediateLocation, op1, funcName, op1, op2, registers);
                 mmcregister.destinationRegister = resName;
                 mmcregister.opcode = "Compare";
+                std::cout << "Ops " << op1 << " " << op2 << std::endl;
                 if (opCodeString.ends_with("LT")) {
                   mmcregister.condition = op1 + " < " + op2;
                   mmcregister.content = "true";
@@ -177,6 +178,9 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
                   mmcregister.content = "false";
                   registers[funcName].push_back(mmcregister);
                 }
+              } else if (opCodeString == "SExt") {
+                std::cout << "SExt " << op1 << " " << op2 << std::endl;
+
               } else if (opCodeString == "Add") {
                 mmcregister.destinationRegister = resName;
                 mmcregister.content = op1 + " + " + op2;
@@ -226,8 +230,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
                 registers[funcName].push_back(mmcregister);
               }
             }
-          }
-          if (std::variant(instr.getContent()).index() == 5) {
+          } else if (std::variant(instr.getContent()).index() == 5) {
             auto content = get<MiniMC::Model::PtrAddContent>(instr.getContent());
             auto ptrAddString = "PtrAdd";
             if (content.res->isRegister()) {
@@ -243,8 +246,25 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
               mmcregister.opcode = ptrAdd;
               registers[funcName].push_back(mmcregister);
             }
+          } 
+          else if (std::variant(instr.getContent()).index() == 1) {
+            auto content = get<MiniMC::Model::UnaryContent>(instr.getContent());
+            auto unaryString = "Unary";
+            if (content.res->isRegister()) {
+              auto unaryReg = std::dynamic_pointer_cast<MiniMC::Model::Register>(content.res);
+              std::vector<std::string> splitResult;
+              boost::split(splitResult, location->getInfo().getName(), boost::is_any_of(":"));
+              auto resName = splitResult[0] + "-" + unaryReg->getSymbol().prefix().getName();
+              std::ostringstream ossUnary;
+              ossUnary << instr.getOpcode();
+              auto unary = content.res->string_repr() + content.op1->string_repr();
+              mmcregister.destinationRegister = resName;
+              mmcregister.content = unaryString;
+              mmcregister.opcode = unary;
+              registers[funcName].push_back(mmcregister);
+            }
           }
-          if (std::variant(instr.getContent()).index() == 9) {
+          else if (std::variant(instr.getContent()).index() == 9) {
             auto content = get<MiniMC::Model::NonDetContent>(instr.getContent());
             auto nonDetString = "NonDet";
             if (content.res->isRegister()) {
@@ -266,7 +286,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
               registers[funcName].push_back(mmcregister);
             }
           }
-          if (std::variant(instr.getContent()).index() == 11) {
+          else if (std::variant(instr.getContent()).index() == 11) {
             auto content = get<MiniMC::Model::LoadContent>(instr.getContent());
             auto loadString = "Load";
             if (content.res->isRegister()) {
@@ -283,7 +303,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
               registers[funcName].push_back(mmcregister);
             }
           }
-          if (std::variant(instr.getContent()).index() == 12) {
+          else if (std::variant(instr.getContent()).index() == 12) {
             auto content = get<MiniMC::Model::StoreContent>(instr.getContent());
             auto storeString = "Store";
             if (content.storee->isRegister()) {
@@ -301,7 +321,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
             }
           }
           // CallContents index as a variant of InstructionContent is 14
-          if (std::variant(instr.getContent()).index() == 14) {
+          else if (std::variant(instr.getContent()).index() == 14) {
             std::string resName;
             std::string callContent;
             std::string opCodeString = "Call";
@@ -329,7 +349,7 @@ void functionRegisters(const MiniMC::Model::Function_ptr& func, std::unordered_m
                     auto paramsPointer = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(paramsConstant);
                     auto paramsPointerValue = paramsPointer->getValue();
                     // Pointer struct segments use ascii values to describe the content. 72 = H = Heap. 70 = F = Function and so on.
-                    if (paramsPointerValue.segment == 72) {
+                    if (paramsPointerValue.segment == (int)'H') {
                       for (auto initInstr : func->getPrgm().getInitialiser()) {
                         if (instr.getOpcode() == MiniMC::Model::InstructionCode::Store) {
                           auto content = get<12>(instr.getContent());
@@ -541,6 +561,8 @@ void write_variables(MiniMC::Model::Program program, std::unordered_map<std::str
 }
 
 void write_init(std::unordered_map<std::string, std::string> initMap, std::string& smv, std::unordered_map<std::string, std::vector<registerStruct>> varRegs) {
+
+  MiniMC::Support::Messager messager{};
   for (const auto& init : initMap) {
     smv += init.second;
   }
@@ -571,11 +593,16 @@ void write_init(std::unordered_map<std::string, std::string> initMap, std::strin
           continue;
         }
 
-
+        std::cout << "Size of function result: " << function_result.size() << std::endl;
+        std::cout << "Size of register result: " << register_result.size() << std::endl;
         if (std::find(used_funcs.begin(), used_funcs.end(), function_result[0]) != used_funcs.end()){
-          smv += "ASSIGN init(" + reg.destinationRegister + ") :=" + get_for_register(function_result[0], register_result[0], varRegs)[0].content + ";\n";
+          std::vector<registerStruct> regStructs = get_for_register(function_result[0], register_result[0], varRegs);
+          if (regStructs.empty()) {
+            messager.message("No register found for " + function_result[0] + " " + register_result[0]+ " " + reg.regLocation + " " + reg.destinationRegister);
+          }
+          smv += "ASSIGN init(" + reg.destinationRegister + ") := " + get_for_register(function_result[0], register_result[0], varRegs)[0].content + ";\n";
         } else {
-          smv += "ASSIGN init(" + reg.destinationRegister + ") :=" + reg.content + ";\n";
+          smv += "ASSIGN init(" + reg.destinationRegister + ") := " + reg.content + ";\n";
         }
         used_regs.push_back(reg.destinationRegister);
       }
@@ -814,7 +841,6 @@ namespace {
     desc.add_options()("ctl.expect-false", po::value<int>()->default_value(0)->notifier(setExpectFalse), "Expect the CTL spec to be false (0 = no, 1 = yes)");
     od.add(desc);
   }
-
 }; // namespace
 
 MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::CPA::AnalysisBuilder& cpa) {
@@ -921,4 +947,4 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
   return MiniMC::Host::ExitCodes::AllGood;
 }
 
-static CommandRegistrar ctl_reg("ctl", ctl_main, "CTL analysis", addOptions);
+// static CommandRegistrar ctl_reg("ctl2", ctl_main, "CTL analysis", addOptions);
