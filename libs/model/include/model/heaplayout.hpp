@@ -30,6 +30,10 @@ namespace MiniMC {
       HeapBlock getIndex(int a){
         return blocks[a];
       }
+
+      size_t getSize(){
+        return blocks.size();
+      }
       
     private:
       std::vector<HeapBlock> blocks;
