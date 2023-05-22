@@ -131,6 +131,10 @@ class InstructionSpec : public Spec {
     std::string write() = 0;
     std::string operation;
 
+    InstructionSpec(MiniMC::Model::Program_ptr prg){
+      this->prg = prg;
+    };
+
     void set_prg(MiniMC::Model::Program_ptr prg) {
       this->prg = prg;
     }
@@ -164,7 +168,7 @@ class InstructionSpec : public Spec {
       return SmvType::Unknown;
     }
 
-    void address_heap(MiniMC::Model::Value_ptr content, std::string& result) {
+    void address_heap(MiniMC::Model::Value_ptr content, std::string& result, MiniMC::Model::Program_ptr prg) {
       if (content->isConstant()) {
         auto constant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(content);
         if (constant->isPointer()) {
@@ -173,12 +177,17 @@ class InstructionSpec : public Spec {
             std::cerr << ptr->getType() << std::endl;
             // TODO This does not get any value currently. We want to get the register name we are pointing to.
             if (ptr->isRegister()) {
-              auto a = prg->getHeapLayout().getIndex(ptr->getValue().base);
-              result = "heap[" + std::to_string(ptr->getValue().base) + ":" + std::to_string(ptr->getValue().offset) + "]";
-            } else if (ptr->isConstant()) {
-              
-              auto a = prg->getHeapLayout().getIndex(ptr->getValue().base + ptr->getValue().offset);
-              result = "heap[" + std::to_string(ptr->getValue().base) + ":" + std::to_string(ptr->getValue().offset) + "]";
+              if (prg->getHeapLayout().getSize() != 0){
+                auto a = prg->getHeapLayout().getIndex(ptr->getValue().base);
+                result = "heap[" + std::to_string(ptr->getValue().base) + ":" + std::to_string(ptr->getValue().offset) + "]";
+
+              }
+            } else if (ptr->isConstant() && prg->getHeapLayout().getSize() != 0) {
+              if (prg->getHeapLayout().getSize() != 0){
+                auto a = prg->getHeapLayout().getIndex(ptr->getValue().base + ptr->getValue().offset);
+                result = "heap[" + std::to_string(ptr->getValue().base) + ":" + std::to_string(ptr->getValue().offset) + "]";
+
+              }
             } else {
 
               result = "unknown";
@@ -197,9 +206,8 @@ class InstructionSpec : public Spec {
 
 class TACInstruction : public InstructionSpec {
   public:
-    TACInstruction(MiniMC::Model::Instruction instr) 
-          : instruction(instr),
-            result_register(std::get<MiniMC::Model::TACContent>(instruction.getContent()).res) {
+    TACInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instr)
+        : InstructionSpec(prg), instruction(instr), result_register(std::get<MiniMC::Model::TACContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -207,9 +215,9 @@ class TACInstruction : public InstructionSpec {
       operation = oss.str();
       auto lhs_content = std::get<MiniMC::Model::TACContent>(instruction.getContent()).op1;
       auto rhs_content = std::get<MiniMC::Model::TACContent>(instruction.getContent()).op2;
-      
-      address_heap(lhs_content, lhs);
-      address_heap(rhs_content, rhs);
+
+      address_heap(lhs_content, lhs, this->prg);
+      address_heap(rhs_content, rhs, this->prg);
 
       if (lhs_content->isConstant()) {
         auto paramsConstant = std::dynamic_pointer_cast<MiniMC::Model::Constant>(lhs_content);
@@ -251,7 +259,7 @@ class TACInstruction : public InstructionSpec {
 
 class UnaryInstruction : public InstructionSpec {
   public:
-    UnaryInstruction(MiniMC::Model::Instruction instr) : instruction(instr), result_register(std::get<MiniMC::Model::UnaryContent>(instruction.getContent()).res) {
+    UnaryInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instr) : InstructionSpec(prg), instruction(instr), result_register(std::get<MiniMC::Model::UnaryContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -278,7 +286,7 @@ class UnaryInstruction : public InstructionSpec {
 
 class BinaryInstruction : public InstructionSpec {
   public:
-    BinaryInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction) {
+    BinaryInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -305,7 +313,7 @@ class BinaryInstruction : public InstructionSpec {
 
 class ExtractInstruction : public InstructionSpec {
   public:
-    ExtractInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::ExtractContent>(instruction.getContent()).res) {
+    ExtractInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::ExtractContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -333,7 +341,7 @@ class ExtractInstruction : public InstructionSpec {
 
 class InsertInstruction : public InstructionSpec {
   public:
-    InsertInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::InsertContent>(instruction.getContent()).res) {
+    InsertInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::InsertContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -363,7 +371,7 @@ class InsertInstruction : public InstructionSpec {
 
 class PtrAddInstruction : public InstructionSpec {
   public:
-    PtrAddInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::PtrAddContent>(instruction.getContent()).res) {
+    PtrAddInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::PtrAddContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -394,7 +402,7 @@ class PtrAddInstruction : public InstructionSpec {
 
 class ExtendObjectInstruction : public InstructionSpec {
   public:
-    ExtendObjectInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::ExtendObjContent>(instruction.getContent()).res) {
+    ExtendObjectInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::ExtendObjContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -423,7 +431,7 @@ class ExtendObjectInstruction : public InstructionSpec {
 
 class MallocInstruction : public InstructionSpec {
   public:
-    MallocInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction) {
+    MallocInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -451,7 +459,7 @@ class MallocInstruction : public InstructionSpec {
 
 class FreeInstruction : public InstructionSpec {
   public:
-    FreeInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction) {
+    FreeInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -476,7 +484,7 @@ class FreeInstruction : public InstructionSpec {
 
 class NonDetInstruction : public InstructionSpec {
   public:
-    NonDetInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::NonDetContent>(instruction.getContent()).res) {
+    NonDetInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::NonDetContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -507,7 +515,7 @@ class NonDetInstruction : public InstructionSpec {
 
 class AssumeInstruction : public InstructionSpec {
   public:
-    AssumeInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction) {
+    AssumeInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -532,7 +540,7 @@ class AssumeInstruction : public InstructionSpec {
 
 class LoadInstruction : public InstructionSpec {
   public:
-    LoadInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::LoadContent>(instruction.getContent()).res) {
+    LoadInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::LoadContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -558,7 +566,7 @@ class LoadInstruction : public InstructionSpec {
 
 class StoreInstruction : public InstructionSpec {
   public:
-    StoreInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction) {
+    StoreInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -587,7 +595,7 @@ class StoreInstruction : public InstructionSpec {
 
 class ReturnInstruction : public InstructionSpec {
   public:
-    ReturnInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction) {
+    ReturnInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -612,7 +620,7 @@ class ReturnInstruction : public InstructionSpec {
 
 class CallInstruction : public InstructionSpec {
   public:
-    CallInstruction(MiniMC::Model::Instruction instruction) : instruction(instruction), result_register(std::get<MiniMC::Model::CallContent>(instruction.getContent()).res) {
+    CallInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::CallContent>(instruction.getContent()).res) {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -653,35 +661,35 @@ inline std::shared_ptr<InstructionSpec> make_instruction(MiniMC::Model::Instruct
   int index = instruction.getContent().index();
   std::shared_ptr<InstructionSpec> instr = nullptr;
   if (index == 0) { // TAC
-    instr = std::make_shared<TACInstruction>(instruction);
+    instr = std::make_shared<TACInstruction>(program, instruction);
   } else if (index == 1) { // Unary
-    instr = std::make_shared<UnaryInstruction>(instruction);
+    instr = std::make_shared<UnaryInstruction>(program, instruction);
   } else if (index == 2) { // Binary
-    instr = std::make_shared<BinaryInstruction>(instruction);
+    instr = std::make_shared<BinaryInstruction>(program, instruction);
   } else if (index == 3) { // Extract
-    instr = std::make_shared<ExtractInstruction>(instruction);
+    instr = std::make_shared<ExtractInstruction>(program, instruction);
   } else if (index == 4) { // Insert
-    instr = std::make_shared<InsertInstruction>(instruction);
+    instr = std::make_shared<InsertInstruction>(program, instruction);
   } else if (index == 5) { // PtrAdd
-    instr = std::make_shared<PtrAddInstruction>(instruction);
+    instr = std::make_shared<PtrAddInstruction>(program, instruction);
   } else if (index == 6) { // ExtendObject
-    instr = std::make_shared<ExtendObjectInstruction>(instruction);
+    instr = std::make_shared<ExtendObjectInstruction>(program, instruction);
   } else if (index == 7) { // Malloc
-    instr = std::make_shared<MallocInstruction>(instruction);
+    instr = std::make_shared<MallocInstruction>(program, instruction);
   } else if (index == 8) { // Free
-    instr = std::make_shared<FreeInstruction>(instruction);
+    instr = std::make_shared<FreeInstruction>(program, instruction);
   } else if (index == 9) { // NonDet
-    instr = std::make_shared<NonDetInstruction>(instruction);
+    instr = std::make_shared<NonDetInstruction>(program, instruction);
   } else if (index == 10) { // Assume
-    instr = std::make_shared<AssumeInstruction>(instruction);
+    instr = std::make_shared<AssumeInstruction>(program, instruction);
   } else if (index == 11) { // Load
-    instr = std::make_shared<LoadInstruction>(instruction);
+    instr = std::make_shared<LoadInstruction>(program, instruction);
   } else if (index == 12) { // Store
-    instr = std::make_shared<StoreInstruction>(instruction);
+    instr = std::make_shared<StoreInstruction>(program, instruction);
   } else if (index == 13) { // Return
-    instr = std::make_shared<ReturnInstruction>(instruction);
+    instr = std::make_shared<ReturnInstruction>(program, instruction);
   } else if (index == 14) { // Call
-    instr = std::make_shared<CallInstruction>(instruction);
+    instr = std::make_shared<CallInstruction>(program, instruction);
   } else {
     std::cerr << "Unknown Instruction indexed: " << instruction.getContent().index() << std::endl;
   }
