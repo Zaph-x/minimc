@@ -656,6 +656,31 @@ class CallInstruction : public InstructionSpec {
     std::string argument;
 };
 
+class ReturnVoidInstruction : public InstructionSpec {
+public:
+  ReturnVoidInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
+    operation_ident = (std::string)std::visit([](const auto& value)
+                                              { return typeid(value).name(); }, std::variant(instruction.getContent()));
+    std::ostringstream oss;
+    oss << instruction.getOpcode();
+    operation = oss.str();
+    value = std::get<int>(instruction.getContent());
+  }
+
+  std::string to_string() {
+    return "Return Instruction: " + operation + " " + value;
+  }
+
+  std::string write() {
+    return "";
+  }
+
+private:
+  MiniMC::Model::Instruction instruction;
+  std::string operation_ident;
+  std::string value;
+};
+
 
 inline std::shared_ptr<InstructionSpec> make_instruction(MiniMC::Model::Instruction instruction, MiniMC::Model::Program_ptr program) {
   int index = instruction.getContent().index();
@@ -690,6 +715,8 @@ inline std::shared_ptr<InstructionSpec> make_instruction(MiniMC::Model::Instruct
     instr = std::make_shared<ReturnInstruction>(program, instruction);
   } else if (index == 14) { // Call
     instr = std::make_shared<CallInstruction>(program, instruction);
+  } else if (index == 15) { // RetVoid
+    instr = std::make_shared<ReturnVoidInstruction>(program, instruction);
   } else {
     std::cerr << "Unknown Instruction indexed: " << instruction.getContent().index() << std::endl;
   }
