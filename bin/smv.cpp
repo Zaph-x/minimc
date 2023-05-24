@@ -44,6 +44,12 @@ std::string exec_cmd(const char* cmd) {
  * */
 
 
+std::unordered_map<std::string, std::vector<std::string>> ctl_specs = {
+  {"unsafe_fork", {
+      "AG (locations = fork-bb0 -> AX(AF locations = fork-bb0))",
+      "EG (locations = fork-bb0 -> AX(EF locations = fork-bb0))",
+  }},
+};
 
 
 
@@ -114,8 +120,8 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
   if (opts.debug) {
     messager.message("Debugging mode enabled");
     spec.print();
-    return MiniMC::Host::ExitCodes::AllGood;
   }
+  spec.write("smv.smv", opts.spec, ctl_specs);
 
 
   return MiniMC::Host::ExitCodes::AllGood;

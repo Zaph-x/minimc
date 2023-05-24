@@ -96,10 +96,10 @@ class ImmediateValueSpec : public ValueSpec {
 
 class SmvVarSpec : public Spec {
   public:
-    SmvVarSpec(std::string identifier, SmvType type) 
+    SmvVarSpec(std::string& identifier, SmvType type)
       : identifier(identifier), type(type) {}
     std::string write_init() {
-      if (values.size() == 0) {
+      if (values.empty()) {
         return "";
       }
       return "ASSIGN init(" + identifier + ") := " + values[0] + ";";
@@ -174,19 +174,25 @@ class InstructionSpec : public Spec {
         if (constant->isPointer()) {
           auto ptr = std::dynamic_pointer_cast<MiniMC::Model::TConstant<MiniMC::pointer64_t>>(constant);
           if (ptr->getValue().segment == (int)'H') {
-            std::cerr << ptr->getType() << std::endl;
             // TODO This does not get any value currently. We want to get the register name we are pointing to.
             if (ptr->isRegister()) {
               if (prg->getHeapLayout().getSize() != 0){
                 auto a = prg->getHeapLayout().getIndex(ptr->getValue().base);
+
                 result = "heap[" + std::to_string(ptr->getValue().base) + ":" + std::to_string(ptr->getValue().offset) + "]";
 
               }
-            } else if (ptr->isConstant() && prg->getHeapLayout().getSize() != 0) {
+            } else if (ptr->isConstant()) {
+              auto f = prg->getFunction(ptr->getValue().base)->getRegisterStackDescr().getRegisters()[ptr->getValue().offset];
               if (prg->getHeapLayout().getSize() != 0){
-                auto a = prg->getHeapLayout().getIndex(ptr->getValue().base + ptr->getValue().offset);
-                result = "heap[" + std::to_string(ptr->getValue().base) + ":" + std::to_string(ptr->getValue().offset) + "]";
-
+                auto& initialiser = prg->getInitialiser();
+                for (auto& instruction : initialiser) {
+                  if (instruction.getContent().index() == 12) { // Store
+                    auto store_instr = std::get<MiniMC::Model::StoreContent>(instruction.getContent());
+                    result = store_instr.storee->string_repr();
+                    return;
+                  }
+                }
               }
             } else {
 
@@ -618,6 +624,7 @@ class ReturnInstruction : public InstructionSpec {
     std::string value;
 };
 
+
 class CallInstruction : public InstructionSpec {
   public:
     CallInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), result_register(std::get<MiniMC::Model::CallContent>(instruction.getContent()).res) {
@@ -720,14 +727,13 @@ inline std::shared_ptr<InstructionSpec> make_instruction(MiniMC::Model::Instruct
   } else {
     std::cerr << "Unknown Instruction indexed: " << instruction.getContent().index() << std::endl;
   }
-  instr->set_prg(program);
   return instr;
 }
 
 
 class LocationSpec : public Spec {
   public:
-    LocationSpec(std::string identifier, std::string bb_location) 
+    LocationSpec(std::string identifier, std::string bb_location)
       : identifier(identifier), bb_location(bb_location) {}
 
     constexpr std::string to_string() {
@@ -743,10 +749,35 @@ class LocationSpec : public Spec {
       }
       return result;
     }
+
+    std::string& get_called_function() {
+      return called_function;
+    }
+
+    bool has_return_instruction() {
+      return has_return;
+    }
     
+    std::vector<std::shared_ptr<LocationSpec>> get_next() {
+      return next;
+    }
     void assign_next(SmvSpec& parent_spec, std::string identifier, std::string bb_location);
     
     LocationSpec* add_instruction(MiniMC::Model::Instruction instruction, MiniMC::Model::Program_ptr program) {
+      if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Ret) {
+        has_return = true;
+      } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Call) {
+        auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
+        auto function_name = content.argument;
+        if (!this->next.empty())
+            this->next.pop_back();
+        auto func = std::make_shared<LocationSpec>(function_name, "0");
+        called_function = function_name;
+        
+        this->next.push_back(func);
+        this->calls_function = true;
+        return this;
+      }
       instructions.push_back(make_instruction(instruction, program));
       return this;
     }
@@ -757,9 +788,17 @@ class LocationSpec : public Spec {
       }
       return this;
     }
+    
+    std::string& get_identifier() {
+      return identifier;
+    }
 
     std::string write() {
       return "";
+    }
+
+    bool is_calling() {
+      return calls_function;
     }
 
     constexpr std::string get_full_name() const {
@@ -775,6 +814,10 @@ class LocationSpec : public Spec {
     std::string bb_location;
     std::vector<std::shared_ptr<LocationSpec>> next;
     std::vector<std::shared_ptr<InstructionSpec>> instructions;
+    bool calls_function = false;
+    bool has_return = false;
+    std::string called_function;
+
 
 };
 
@@ -790,6 +833,25 @@ class SmvSpec {
     void add_var(std::string identifier, SmvType type);
     std::shared_ptr<LocationSpec> get_location(std::string name); 
     void print();
+    void write(const std::string filename, const std::string& spec, std::unordered_map<std::string, std::vector<std::string>>& ctl_map);
+    std::shared_ptr<LocationSpec> get_last_location() {
+      return locations.back();
+    }
+    std::vector<std::shared_ptr<LocationSpec>> get_returning_locations(const std::string& function_name) {
+      std::vector<std::shared_ptr<LocationSpec>> result;
+      for (auto& location : locations) {
+        if (location->get_identifier().compare(function_name)) {
+          continue;
+        }
+        std::cout << location->get_full_name() << std::endl;
+        std::cout << location->get_identifier() << std::endl;
+        std::cout << function_name << std::endl;
+        if (location->has_return_instruction()) {
+          result.push_back(location);
+        }
+      }
+      return result;
+    }
 
   private:
     std::vector<std::shared_ptr<LocationSpec>> locations;
