@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <tuple>
 #include "loaders/loader.hpp"
-
+#include <regex>
 #include <boost/algorithm/string.hpp>
 
 #include <boost/preprocessor.hpp>
@@ -34,6 +34,7 @@
 DEFINE_ENUM_WITH_STRING_CONVERSIONS(SmvType, (Bool)(Int)(Real)(Enum)(Array)(Record)(Ptr)(Unknown));
 
 class SmvSpec;
+class LocationSpec;
 
 
 class Spec {
@@ -54,25 +55,48 @@ class ValueSpec : public Spec {
 class RegisterSpec : ValueSpec {
   public:
     RegisterSpec(std::string identifier, SmvType type) 
-      : identifier(identifier), type(type) {}
+      : identifier(identifier), type(type) {
+      }
     RegisterSpec(MiniMC::Model::Value_ptr value) {
-      identifier = std::dynamic_pointer_cast<MiniMC::Model::Register>(value)->getSymbol().getName();
-      boost::replace_all(identifier, ".", "_");
-      boost::replace_all(identifier, ":", "_");
-      boost::replace_all(identifier, "tmp", "reg");
+      if (value != nullptr) {
+        identifier = std::dynamic_pointer_cast<MiniMC::Model::Register>(value)->getSymbol().getName();
+        boost::replace_all(identifier, ".", "_");
+        boost::replace_all(identifier, ":", "_");
+        boost::replace_all(identifier, "tmp", "reg");
+        return;
+      }
+      is_null = true;
+    }
+
+    std::vector<std::shared_ptr<LocationSpec>>& get_next() {
+      return next;
+    }
+
+    bool is_null_register() {
+      return is_null;
     }
     
     void set_type(SmvType type) {
       this->type = type;
     }
 
+    void add_next(std::shared_ptr<LocationSpec> next) {
+      this->next.push_back(next);
+    }
+
     constexpr std::string to_string() {return "Register: " + identifier + " : " + enum_string(type) + ";";}
     constexpr bool is_register() {return true;}
     constexpr std::string write() {return "VAR " + identifier + " : TODO:WRITE_HERE;\n";}
+    std::string& get_identifier() {return identifier;}
+    std::vector<std::string>& get_values() {return values;}
+    std::vector<std::shared_ptr<LocationSpec>> next;
+
 
   private:
     std::string identifier;
     SmvType type = SmvType::Unknown;
+    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet"};
+    bool is_null = false;
 };
 
 class ImmediateValueSpec : public ValueSpec {
@@ -97,7 +121,8 @@ class ImmediateValueSpec : public ValueSpec {
 class SmvVarSpec : public Spec {
   public:
     SmvVarSpec(std::string& identifier, SmvType type)
-      : identifier(identifier), type(type) {}
+      : identifier(identifier), type(type) {
+    }
     std::string write_init() {
       if (values.empty()) {
         return "";
@@ -117,10 +142,23 @@ class SmvVarSpec : public Spec {
       return "";
     }
 
+    std::string& get_identifier() {
+      return identifier;
+    }
+
+    SmvType& get_type() {
+      return type;
+    }
+
+    std::vector<std::string>& get_values() {
+      return values;
+    }
+
+
   private:
     std::string identifier;
     SmvType type;
-    std::vector<std::string> values;
+    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet"};
 
 };
 
@@ -128,7 +166,7 @@ class InstructionSpec : public Spec {
   public:
     std::string to_string() {return "UNFINISHED INSTRUCTION";}
     MiniMC::Model::Program_ptr prg;
-    std::string write() = 0;
+    virtual std::string write() = 0;
     std::string operation;
 
     InstructionSpec(MiniMC::Model::Program_ptr prg){
@@ -647,11 +685,26 @@ class CallInstruction : public InstructionSpec {
       for (auto& param : params) {
         params_string += param + ", ";
       }
-      return "Call Instruction: " + operation + " (" + result_register.to_string() + ") <- " + function_name + "(" + params_string + argument + ")";
+      if (result_register.is_null_register()) {
+        return "Call Instruction: " + operation + " " + argument + " (Void) <- " + function_name + "(" + params_string + ")";
+      }
+      return "Call Instruction: " + operation + " " + argument + " (" + result_register.to_string() + ") <- " + function_name + "(" + params_string + ")";
     }
 
     std::string write() {
       return "";
+    }
+
+    RegisterSpec& get_result_register() {
+      return result_register;
+    }
+
+    std::vector<std::string>& get_params() {
+      return params;
+    }
+
+    std::string get_function_name() {
+      return argument;
     }
 
   private:
@@ -733,8 +786,12 @@ inline std::shared_ptr<InstructionSpec> make_instruction(MiniMC::Model::Instruct
 
 class LocationSpec : public Spec {
   public:
-    LocationSpec(std::string identifier, std::string bb_location)
-      : identifier(identifier), bb_location(bb_location) {}
+    // LocationSpec(std::string identifier, std::string bb_location)
+    //   : identifier(identifier), bb_location(bb_location) {
+    //   parent_spec = nullptr;
+    // }
+    LocationSpec(std::string identifier, std::string bb_location, SmvSpec& parent_spec)
+      : identifier(identifier), bb_location(bb_location), parent_spec(parent_spec) {}
 
     constexpr std::string to_string() {
       std::string result = "Location: " + get_full_name() + ";";
@@ -748,6 +805,10 @@ class LocationSpec : public Spec {
         result += "\n    " + instruction->to_string() + ";";
       }
       return result;
+    }
+
+    std::vector<std::shared_ptr<InstructionSpec>> get_instructions() {
+      return instructions;
     }
 
     std::string& get_called_function() {
@@ -764,19 +825,18 @@ class LocationSpec : public Spec {
     void assign_next(SmvSpec& parent_spec, std::string identifier, std::string bb_location);
     
     LocationSpec* add_instruction(MiniMC::Model::Instruction instruction, MiniMC::Model::Program_ptr program) {
-      if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Ret) {
+      if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Ret || instruction.getOpcode() == MiniMC::Model::InstructionCode::RetVoid) {
         has_return = true;
       } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Call) {
         auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
         auto function_name = content.argument;
         if (!this->next.empty())
             this->next.pop_back();
-        auto func = std::make_shared<LocationSpec>(function_name, "0");
+        auto func = std::make_shared<LocationSpec>(function_name, "0", parent_spec);
         called_function = function_name;
         
         this->next.push_back(func);
         this->calls_function = true;
-        return this;
       }
       instructions.push_back(make_instruction(instruction, program));
       return this;
@@ -817,9 +877,17 @@ class LocationSpec : public Spec {
     bool calls_function = false;
     bool has_return = false;
     std::string called_function;
+    SmvSpec& parent_spec;
 
 
 };
+enum class CTLReplaceType {
+  Register,
+  Variable,
+  Location,
+  None
+};
+
 
 
 class SmvSpec {
@@ -829,11 +897,11 @@ class SmvSpec {
       return result;
     }
     std::shared_ptr<LocationSpec> add_location(std::string identifier, std::string location);
-    void add_register(std::string identifier, SmvType type);
+    std::shared_ptr<RegisterSpec> add_register(std::string identifier, SmvType type);
     void add_var(std::string identifier, SmvType type);
     std::shared_ptr<LocationSpec> get_location(std::string name); 
     void print();
-    void write(const std::string filename, const std::string& spec, std::unordered_map<std::string, std::vector<std::string>>& ctl_map);
+    void write(const std::string filename, const std::string& spec, std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::string>>>& ctl_map);
     std::shared_ptr<LocationSpec> get_last_location() {
       return locations.back();
     }
@@ -843,14 +911,27 @@ class SmvSpec {
         if (location->get_identifier().compare(function_name)) {
           continue;
         }
-        std::cout << location->get_full_name() << std::endl;
-        std::cout << location->get_identifier() << std::endl;
-        std::cout << function_name << std::endl;
         if (location->has_return_instruction()) {
           result.push_back(location);
         }
       }
       return result;
+    }
+
+    std::shared_ptr<RegisterSpec> register_from_str_repr(const std::string& repr) {
+      std::regex re("<(\\w+:\\w+) Pointer>");
+      std::smatch match;
+      // Get the first capturegroup from repr
+      std::regex_search(repr, match, re);
+      std::string identifier = match[1];
+      boost::replace_all(identifier, ":tmp", "-reg");
+
+      for (auto& reg : registers) {
+        if (reg->get_identifier() == identifier) {
+          return reg;
+        }
+      }
+      return nullptr;
     }
 
   private:

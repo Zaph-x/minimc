@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <string>
 #include "smv.hpp"
+// Include regex
+#include <regex>
 
 #include "cpa/location.hpp"
 #ifdef MINIMC_SYMBOLIC
@@ -43,12 +45,14 @@ std::string exec_cmd(const char* cmd) {
  * END UTILITY FUNCTIONS
  * */
 
-
-std::unordered_map<std::string, std::vector<std::string>> ctl_specs = {
-  {"unsafe_fork", {
+std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::string>>> ctl_specs = {
+  {"unsafe_fork", {CTLReplaceType::None, {
       "AG (locations = fork-bb0 -> AX(AF locations = fork-bb0))",
-      "EG (locations = fork-bb0 -> AX(EF locations = fork-bb0))",
-  }},
+      "AG (locations = fork-bb0 -> AX(EF locations = fork-bb0))",
+  }}},
+  {"double_free", {CTLReplaceType::Register, {
+      "AG ((locations = free-bb0 & %1 = Assigned) -> EX(%1 != Modified & AF (locations = free-bb0 & %1 = NonDet)))"
+  }}}
 };
 
 
@@ -122,6 +126,28 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
     spec.print();
   }
   spec.write("smv.smv", opts.spec, ctl_specs);
+  std::string cmd = "nusmv smv.smv";
+  std::string output = exec_cmd(cmd.c_str());
+
+  std::regex re(".*is false.*");
+  std::smatch match;
+  bool found = std::regex_search(output, match, re);
+
+  if (!opts.keep_smv) {
+    std::remove("smv.smv");
+  }
+
+  messager.message("CTL analysis result:\n" + output);
+
+  if (opts.expect_false && !found) {
+    messager.message("CTL analysis failed: expected false, got true");
+    return MiniMC::Host::ExitCodes::UnexpectedResult;
+  } else if (!opts.expect_false && found) {
+    messager.message("CTL analysis failed: expected true, got false");
+    return MiniMC::Host::ExitCodes::UnexpectedResult;
+  } else {
+    messager.message("CTL analysis succeeded");
+  }
 
 
   return MiniMC::Host::ExitCodes::AllGood;

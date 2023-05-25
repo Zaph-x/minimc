@@ -16,13 +16,35 @@ void LocationSpec::assign_next(SmvSpec& parent_spec, std::string identifier, std
   if (parent_spec.get_location(identifier+"-bb"+bb_location) == nullptr) {
     return;
   }
-  next.push_back(std::make_shared<LocationSpec>(identifier, bb_location));
+  next.push_back(std::make_shared<LocationSpec>(identifier, bb_location, parent_spec));
 }
 
-void generate_spec_paths(SmvSpec spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function, const std::shared_ptr<MiniMC::Model::Function>& return_function) {
+void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionSpec>& instr, const std::string& location_name, const std::string& basic_block) {
+  const auto& location = spec.get_location(location_name+"-bb"+basic_block);
+  std::cout << instr->to_string() << std::endl;
+  if (std::dynamic_pointer_cast<CallInstruction>(instr) != nullptr) {
+    const auto& call_instr = std::dynamic_pointer_cast<CallInstruction>(instr);
+    if (!call_instr->get_result_register().is_null_register()) {
+      spec.add_register(location_name + "-" + call_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+      
+    }
+    if (!call_instr->get_params().empty()) {
+      for (const auto& args : call_instr->get_params()) {
+        const auto& rgstr = spec.register_from_str_repr(args);
+        const auto& new_loc = spec.get_location(call_instr->get_function_name()+"-bb0");
+        if (rgstr != nullptr) {rgstr->add_next(new_loc);}
+      }
+    }
+  }
+}
+
+void generate_spec_paths(SmvSpec spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function) {
   for (auto& edge : function->getCFA().getEdges()) {
     std::string locName = std::to_string(edge->getFrom()->getID());
     spec.add_location(function->getSymbol().getName(), locName)->add_instructions(edge->getInstructions(), prg);
+    for (const auto& instr : spec.get_last_location()->get_instructions()) {
+      assign_vars_and_registers(spec, instr, function->getSymbol().getName(), locName);
+    }
   }
 }
 
@@ -34,6 +56,9 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
     for (auto& edge : function->getCFA().getEdges()) {
       std::string locName = std::to_string(edge->getFrom()->getID());
       spec.add_location(function->getSymbol().getName(), locName)->add_instructions(edge->getInstructions(), prg);
+      for (const auto& instr : spec.get_last_location()->get_instructions()) {
+        assign_vars_and_registers(spec, instr, function->getSymbol().getName(), locName);
+      }
     }
     for (auto& edge : function->getCFA().getEdges()) {
       std::string locName = std::to_string(edge->getFrom()->getID());
@@ -41,11 +66,8 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
       if (spec.get_location(function->getSymbol().getName()+"-bb"+locName)->is_calling()) {
 
         auto& called_function = spec.get_location(function->getSymbol().getName()+"-bb"+locName)->get_called_function();
-        std::cout << "Called function: " << called_function << std::endl;
-        std::cout << "Called function exists: " << (prg->getFunction(called_function) != nullptr) << std::endl;
 
         for (auto& ret_loc : spec.get_returning_locations(called_function)) {
-          std::cout << "Returning to: " << ret_loc->get_identifier() << std::endl;
           ret_loc->assign_next(spec, function->getSymbol().getName(), nextLocName);
         }
         continue;
@@ -61,12 +83,15 @@ std::shared_ptr<LocationSpec> SmvSpec::add_location(std::string identifier, std:
   if (get_location(identifier+"-bb"+location) != nullptr) {
     return nullptr;
   }
-  locations.push_back(std::make_shared<LocationSpec>(identifier, location));
+  locations.push_back(std::make_shared<LocationSpec>(identifier, location, *this));
+  // Convert this SmvSpec to a shared_ptr and assign it to a location
   return locations.back();
 }
 
-void SmvSpec::add_register(std::string identifier, SmvType type) {
-  registers.push_back(std::make_shared<RegisterSpec>(identifier, type));
+std::shared_ptr<RegisterSpec> SmvSpec::add_register(std::string identifier, SmvType type) {
+  const auto& reg = std::make_shared<RegisterSpec>(identifier, type);
+  registers.push_back(reg);
+  return reg;
 }
 
 void SmvSpec::add_var(std::string identifier, SmvType type) {
@@ -106,6 +131,38 @@ std::string write_listed_variable(const std::string& name, const std::vector<std
   return output;
 }
 
+std::string write_register_transitions(const std::string& name, const std::vector<std::shared_ptr<LocationSpec>>& locations) {
+  if (locations.empty()) {
+    return "";
+  }
+  std::string output = "";
+  output += "ASSIGN next(" + name + ") :=\n  case\n";
+  for (unsigned long int i = 0; i < locations.size(); i++) {
+    std::cout << locations[i]->get_full_name() << std::endl;
+    output += "    locations = " + locations[i]->get_full_name() + " : {";
+    if (locations[i]->get_full_name().starts_with("free")) {
+      output += "NonDet";
+    } else if (i > 0) {
+      output += "Modified";
+    } else {
+      output += "Assigned";
+    }
+    output += "};\n";
+  }
+  output += "    TRUE : " + name + ";\n";
+  output += "  esac;\n";
+  return output;
+}
+
+std::string write_listed_variable(std::string& name, std::vector<std::string>& values) {
+  std::string output = "";
+  output += "VAR " + name + " : {";
+  output += boost::algorithm::join(values, ", ");
+  output += "};\n";
+  output += "ASSIGN init(" + name + ") := {" + values[0] + "};\n";
+  return output;
+}
+
 template <class Spec>
 std::string write_variable_block(const std::string& name, const std::vector<std::shared_ptr<Spec>>& specs) {
   return write_listed_variable(name, specs) + write_transitions(name, specs);
@@ -115,16 +172,34 @@ std::string write_ctl_spec(const std::string& spec) {
   return "CTLSPEC\n" + spec + ";\n";
 }
 
-void SmvSpec::write(const std::string file_name, const std::string& ctl_spec, std::unordered_map<std::string, std::vector<std::string>>& ctl_specs) {
+void SmvSpec::write(const std::string file_name, const std::string& ctl_spec, std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::string>>>& ctl_specs) {
   std::ofstream file(file_name);
-  std::string output = "";
+  std::string output = "-- Output generated automatically by MiniMC\n";
   output += "MODULE main\n";
   output += write_variable_block("locations", locations);
+  output += "ASSIGN init(locations) := {main-bb0};\n";
+  for (const auto& reg : registers) {
+    output += write_listed_variable(reg->get_identifier(), reg->get_values());
+    output += write_register_transitions(reg->get_identifier(), reg->get_next());
+  }
+  for (const auto& var : vars) {
+    output += write_listed_variable(var->get_identifier(), var->get_values());
+  }
 
   if (ctl_specs.find(ctl_spec) != ctl_specs.end()) {
-    for (const auto& spec : ctl_specs[ctl_spec]) {
-      output += write_ctl_spec(spec);
-    }
+    auto& tuple = ctl_specs[ctl_spec];
+    for (const auto& spec : std::get<1>(tuple)) {
+      auto replace_type = std::get<0>(tuple);
+      if (replace_type == CTLReplaceType::None) {
+        output += write_ctl_spec(spec);
+      } else if (replace_type == CTLReplaceType::Register) {
+
+        for (const auto& reg : registers) {
+          std::string result = write_ctl_spec(spec);
+          boost::replace_all(result, "%1", reg->get_identifier());
+          output += result;
+        }
+      }    }
   } else {
     output += write_ctl_spec(ctl_spec);
   }
