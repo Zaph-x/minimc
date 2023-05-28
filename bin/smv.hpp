@@ -31,9 +31,17 @@ void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionS
     if (!call_instr->get_params().empty()) {
       for (const auto& args : call_instr->get_params()) {
         const auto& rgstr = spec.register_from_str_repr(args);
-        const auto& new_loc = spec.get_location(call_instr->get_function_name()+"-bb0");
+        std::string func_name = call_instr->get_function_name();
+        const auto& new_loc = spec.get_location(func_name+"-bb0");
         if (rgstr != nullptr) {rgstr->add_next(new_loc);}
       }
+    }
+  } else if (std::dynamic_pointer_cast<TACInstruction>(instr)){
+    // Does not seems to do anything yet. - Mkk
+    const auto& tac_instr = std::dynamic_pointer_cast<TACInstruction>(instr);
+    // Multiple TACOps of the same type can occur in a single block. This should be handled, but is probably an edge case(At least for Xor, this is for demo purpose).
+    if (tac_instr->get_result_register().is_null_register()) {
+      spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
     }
   }
 }
@@ -53,26 +61,29 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
 
 
   for (auto& function : prg->getFunctions()) {
+    std::string func_name = function->getSymbol().getName();
+    boost::replace_all(func_name, ".", "-");
     for (auto& edge : function->getCFA().getEdges()) {
       std::string locName = std::to_string(edge->getFrom()->getID());
-      spec.add_location(function->getSymbol().getName(), locName)->add_instructions(edge->getInstructions(), prg);
+      spec.add_location(func_name, locName)->add_instructions(edge->getInstructions(), prg);
       for (const auto& instr : spec.get_last_location()->get_instructions()) {
-        assign_vars_and_registers(spec, instr, function->getSymbol().getName(), locName);
+        assign_vars_and_registers(spec, instr, func_name, locName);
       }
     }
     for (auto& edge : function->getCFA().getEdges()) {
       std::string locName = std::to_string(edge->getFrom()->getID());
       std::string nextLocName = std::to_string(edge->getTo()->getID());
-      if (spec.get_location(function->getSymbol().getName()+"-bb"+locName)->is_calling()) {
+      if (spec.get_location(func_name+"-bb"+locName)->is_calling()) {
 
-        auto& called_function = spec.get_location(function->getSymbol().getName()+"-bb"+locName)->get_called_function();
+        auto& called_function = spec.get_location(func_name+"-bb"+locName)->get_called_function();
 
         for (auto& ret_loc : spec.get_returning_locations(called_function)) {
-          ret_loc->assign_next(spec, function->getSymbol().getName(), nextLocName);
+          ret_loc->assign_next(spec, func_name, nextLocName);
         }
         continue;
       }
-      spec.get_location(function->getSymbol().getName()+"-bb"+locName)->assign_next(spec, function->getSymbol().getName(), nextLocName);
+
+      spec.get_location(func_name+"-bb"+locName)->assign_next(spec, func_name, nextLocName);
     }
   }
 

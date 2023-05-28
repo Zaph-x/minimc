@@ -292,6 +292,10 @@ class TACInstruction : public InstructionSpec {
       return "";
     }
 
+    RegisterSpec& get_result_register() {
+      return result_register;
+    }
+
   private:
     MiniMC::Model::Instruction instruction;
     std::string operation_ident;
@@ -673,10 +677,15 @@ class CallInstruction : public InstructionSpec {
       operation = oss.str();
       auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
       function_name = content.function->string_repr();
+      boost::replace_all(function_name, ".", "-");
       for (auto& arg : content.params) {
+        auto argrepr = arg->string_repr();
         params.push_back(arg->string_repr());
       }
       argument = content.argument;
+      if (argument.starts_with("llmv.")){
+        boost::replace_all(argument, ".", "-");
+      }
       result_register.set_type(SmvType::Int);
     }
 
@@ -830,6 +839,7 @@ class LocationSpec : public Spec {
       } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Call) {
         auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
         auto function_name = content.argument;
+        boost::replace_all(function_name, ".", "-");
         if (!this->next.empty())
             this->next.pop_back();
         auto func = std::make_shared<LocationSpec>(function_name, "0", parent_spec);
