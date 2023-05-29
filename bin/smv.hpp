@@ -180,6 +180,9 @@ std::string write_variable_block(const std::string& name, const std::vector<std:
 }
 
 std::string write_ctl_spec(const std::string& spec) {
+  if (spec.empty()) {
+    return "";
+  }
   return "CTLSPEC\n" + spec + ";\n";
 }
 
