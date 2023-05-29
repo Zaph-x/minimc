@@ -40,9 +40,7 @@ void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionS
     // Does not seems to do anything yet. - Mkk
     const auto& tac_instr = std::dynamic_pointer_cast<TACInstruction>(instr);
     // Multiple TACOps of the same type can occur in a single block. This should be handled, but is probably an edge case(At least for Xor, this is for demo purpose).
-    if (tac_instr->get_result_register().is_null_register()) {
-      spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
-    }
+    spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
   }
 }
 
@@ -61,6 +59,7 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
 
 
   for (auto& function : prg->getFunctions()) {
+    //To handle the naming scheme of intrinsics
     std::string func_name = function->getSymbol().getName();
     boost::replace_all(func_name, ".", "-");
     for (auto& edge : function->getCFA().getEdges()) {
@@ -150,6 +149,7 @@ std::string write_register_transitions(const std::string& name, const std::vecto
   output += "ASSIGN next(" + name + ") :=\n  case\n";
   for (unsigned long int i = 0; i < locations.size(); i++) {
     std::cout << locations[i]->get_full_name() << std::endl;
+    auto instr_list = locations[i]->get_instructions();
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {
       output += "NonDet";
@@ -157,6 +157,15 @@ std::string write_register_transitions(const std::string& name, const std::vecto
       output += "Modified";
     } else {
       output += "Assigned";
+    }
+    if (!instr_list.empty()){
+      for (auto instr: instr_list){
+        auto tac_cast = std::dynamic_pointer_cast<TACInstruction>(instr);
+
+        if (tac_cast != nullptr && tac_cast->operation == "Xor"){
+          output += ", Xored";
+        }
+      }
     }
     output += "};\n";
   }

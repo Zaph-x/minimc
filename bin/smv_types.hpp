@@ -95,7 +95,7 @@ class RegisterSpec : ValueSpec {
   private:
     std::string identifier;
     SmvType type = SmvType::Unknown;
-    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet"};
+    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet", "Xored"};
     bool is_null = false;
 };
 
@@ -847,6 +847,8 @@ class LocationSpec : public Spec {
         
         this->next.push_back(func);
         this->calls_function = true;
+      } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Xor){
+
       }
       instructions.push_back(make_instruction(instruction, program));
       return this;
