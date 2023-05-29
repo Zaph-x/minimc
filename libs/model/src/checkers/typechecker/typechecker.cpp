@@ -373,9 +373,9 @@ namespace MiniMC {
 
         else if constexpr (i == InstructionCode::NonDet) {
           auto type = inst.getOps<i>().res->getType();
-          MiniMC::Support::Localiser must_be_numeric("'%1% must return Int, floats, or doubles");
-          if (!type->isInteger()) {
-            mess.message<MiniMC::Support::Severity::Error>(must_be_numeric.format(i));
+          MiniMC::Support::Localiser must_be_numeric("'%1% must return Int, floats, or doubles. Was '%2%'");
+          if (!type->isInteger() && !type->isFloat() && !type->isDouble() && !type->isPointer()) {
+            mess.message<MiniMC::Support::Severity::Error>(must_be_numeric.format(i, type->get_type_name()));
             return false;
           }
 

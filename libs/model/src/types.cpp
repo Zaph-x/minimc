@@ -52,6 +52,7 @@ namespace MiniMC {
         std::size_t getSize() const { return sizeof(MiniMC::pointer32_t); }
         std::ostream& output(std::ostream& os) const { return os << "Pointer32"; }
         bool innerEq(const Type& ) { return true; }
+        bool isPointer () const override {return true;}
     };
 #else
     class PointerType : public Type {
@@ -60,6 +61,7 @@ namespace MiniMC {
         std::size_t getSize() const { return sizeof(MiniMC::pointer_t); }
         std::ostream& output(std::ostream& os) const { return os << "Pointer"; }
         bool innerEq(const Type& ) { return true; }
+        bool isPointer () const override {return true;}
     };
 #endif
 

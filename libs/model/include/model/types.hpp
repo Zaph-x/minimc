@@ -95,6 +95,7 @@ namespace MiniMC {
       virtual bool isFloat () const {return false;}
       virtual bool isDouble () const {return false;}
       virtual bool isAggregate () const {return false;}
+      virtual bool isPointer () const {return false;}
       
     protected:
       virtual bool innerEq(const Type& t) = 0;
