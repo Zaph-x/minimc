@@ -56,7 +56,8 @@ std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::strin
   {"xor-files", {CTLReplaceType::None, {
       "EG ((locations = fopen-bb0 & main-reg22 != Xored & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & main-reg22 = Unassigned ))",
       "AG ((locations = fopen-bb0 & main-reg22 != Xored ) -> EF ( EX (locations = fwrite-bb0 & main-reg22 = Xored)))",
-       "E [(locations != fread-bb0 & main-reg7 != Assigned & main-reg9 != Assigned) U ((locations = fopen-bb0) & (main-reg7 = Assigned) & (main-reg9 = Unassigned))]"
+       "E [(locations != fread-bb0 & main-reg7 != Assigned & main-reg9 != Assigned) U ((locations = fopen-bb0) & (main-reg7 = Assigned) & (main-reg9 = Unassigned))]",
+       "!E[!(locations != fwrite-bb0) U !((locations != fwrite-bb0) | (main-reg7 = Assigned & main-reg9 = Assigned))]"
 // main-reg7 main-reg9
    }}}
 };
