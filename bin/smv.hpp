@@ -41,7 +41,19 @@ void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionS
     const auto& tac_instr = std::dynamic_pointer_cast<TACInstruction>(instr);
     // Multiple TACOps of the same type can occur in a single block. This should be handled, but is probably an edge case(At least for Xor, this is for demo purpose).
     spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+  } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr)){
+    const auto& PtrAddInstr = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
+    spec.add_register(location_name + "-" + PtrAddInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+  } else if (std::dynamic_pointer_cast<LoadInstruction>(instr)){
+    const auto& LoadInstr = std::dynamic_pointer_cast<LoadInstruction>(instr);
+    spec.add_register(location_name + "-" + LoadInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+  } else if (std::dynamic_pointer_cast<StoreInstruction>(instr)){
+    const auto& StoreInstr = std::dynamic_pointer_cast<StoreInstruction>(instr);
+    //spec.add_register(location_name + "-" + StoreInstr->get_stored_register().get_identifier(), SmvType::Int)->add_next(location);
   }
+
+
+    // If POINTEROPS (PtrAdd, PtrEq) or LOAD/STORE (Memory)
 }
 
 void generate_spec_paths(SmvSpec spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function) {
@@ -160,11 +172,24 @@ std::string write_register_transitions(const std::string& name, const std::vecto
     }
     if (!instr_list.empty()){
       for (auto instr: instr_list){
-        auto tac_cast = std::dynamic_pointer_cast<TACInstruction>(instr);
-
-        if (tac_cast != nullptr && tac_cast->operation == "Xor"){
-          output += ", Xored";
+        if (std::dynamic_pointer_cast<TACInstruction>(instr)){
+          auto tac_cast = std::dynamic_pointer_cast<TACInstruction>(instr);
+          if (tac_cast->operation == "Xor"){
+            output += ", Xored";
+          } else if (tac_cast->operation == "ICMP"){
+            output += ", Compared";
+          }
+        } else if (std::dynamic_pointer_cast<LoadInstruction>(instr)){
+          auto load_cast = std::dynamic_pointer_cast<LoadInstruction>(instr);
+          output += ", Loaded";
+        } else if (std::dynamic_pointer_cast<StoreInstruction>(instr)){
+          auto store_cast = std::dynamic_pointer_cast<StoreInstruction>(instr);
+          output += ", Store";
+        } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr)){
+          auto ptradd_cast = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
+          output += ", PtrAdd";
         }
+
       }
     }
     output += "};\n";
