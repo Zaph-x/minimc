@@ -95,7 +95,7 @@ class RegisterSpec : ValueSpec {
   private:
     std::string identifier;
     SmvType type = SmvType::Unknown;
-    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet"};
+    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet", "Xored", "Store", "Load", "PtrAdd", "Compared"};
     bool is_null = false;
 };
 
@@ -439,7 +439,11 @@ class PtrAddInstruction : public InstructionSpec {
       return "";
     }
 
-  private:
+  RegisterSpec& get_result_register() {
+    return result_register;
+  }
+
+private:
     MiniMC::Model::Instruction instruction;
     std::string operation_ident;
     RegisterSpec result_register;
@@ -605,7 +609,13 @@ class LoadInstruction : public InstructionSpec {
       return "";
     }
 
-  private:
+
+  RegisterSpec& get_result_register() {
+    return result_register;
+  }
+
+
+private:
     MiniMC::Model::Instruction instruction;
     std::string operation_ident;
     RegisterSpec result_register;
@@ -614,7 +624,7 @@ class LoadInstruction : public InstructionSpec {
 
 class StoreInstruction : public InstructionSpec {
   public:
-    StoreInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction) {
+    StoreInstruction(MiniMC::Model::Program_ptr prg, MiniMC::Model::Instruction instruction) : InstructionSpec(prg), instruction(instruction), stored_register(std::get<MiniMC::Model::StoreContent>(instruction.getContent()).addr)  {
       operation_ident = (std::string)std::visit([](const auto& value) 
           { return typeid(value).name(); }, std::variant(instruction.getContent()));
       std::ostringstream oss;
@@ -633,10 +643,29 @@ class StoreInstruction : public InstructionSpec {
       return "";
     }
 
+    std::string get_address(){
+      return address;
+    }
+
+    std::string get_value(){
+      return value;
+    }
+
+    std::string get_variable_name(){
+      return variable_name;
+    }
+
+    RegisterSpec& get_stored_register(){
+      return stored_register;
+    }
+
+
+
   private:
     MiniMC::Model::Instruction instruction;
     std::string operation_ident;
     std::string address;
+    RegisterSpec stored_register;
     std::string value;
     std::string variable_name;
 };
@@ -847,6 +876,8 @@ class LocationSpec : public Spec {
         
         this->next.push_back(func);
         this->calls_function = true;
+      } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Store){
+
       }
       instructions.push_back(make_instruction(instruction, program));
       return this;

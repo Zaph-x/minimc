@@ -40,10 +40,20 @@ void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionS
     // Does not seems to do anything yet. - Mkk
     const auto& tac_instr = std::dynamic_pointer_cast<TACInstruction>(instr);
     // Multiple TACOps of the same type can occur in a single block. This should be handled, but is probably an edge case(At least for Xor, this is for demo purpose).
-    if (tac_instr->get_result_register().is_null_register()) {
-      spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
-    }
+    spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+  } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr)){
+    const auto& PtrAddInstr = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
+    spec.add_register(location_name + "-" + PtrAddInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+  } else if (std::dynamic_pointer_cast<LoadInstruction>(instr)){
+    const auto& LoadInstr = std::dynamic_pointer_cast<LoadInstruction>(instr);
+    spec.add_register(location_name + "-" + LoadInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+  } else if (std::dynamic_pointer_cast<StoreInstruction>(instr)){
+    const auto& StoreInstr = std::dynamic_pointer_cast<StoreInstruction>(instr);
+    //spec.add_register(location_name + "-" + StoreInstr->get_stored_register().get_identifier(), SmvType::Int)->add_next(location);
   }
+
+
+    // If POINTEROPS (PtrAdd, PtrEq) or LOAD/STORE (Memory)
 }
 
 void generate_spec_paths(SmvSpec spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function) {
@@ -61,6 +71,7 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
 
 
   for (auto& function : prg->getFunctions()) {
+    //To handle the naming scheme of intrinsics
     std::string func_name = function->getSymbol().getName();
     boost::replace_all(func_name, ".", "-");
     for (auto& edge : function->getCFA().getEdges()) {
@@ -150,6 +161,7 @@ std::string write_register_transitions(const std::string& name, const std::vecto
   output += "ASSIGN next(" + name + ") :=\n  case\n";
   for (unsigned long int i = 0; i < locations.size(); i++) {
     std::cout << locations[i]->get_full_name() << std::endl;
+    auto instr_list = locations[i]->get_instructions();
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {
       output += "NonDet";
@@ -157,6 +169,33 @@ std::string write_register_transitions(const std::string& name, const std::vecto
       output += "Modified";
     } else {
       output += "Assigned";
+    }
+    if (!instr_list.empty()){
+      std::vector<std::string> reg_name;
+      boost::split(reg_name, name, boost::is_any_of("-"));
+      for (auto instr: instr_list){
+        if (std::dynamic_pointer_cast<TACInstruction>(instr)){
+          auto tac_cast = std::dynamic_pointer_cast<TACInstruction>(instr);
+          if (tac_cast->operation == "Xor"){
+            output += ", Xored";
+          } else if (tac_cast->operation == "ICMP"){
+            output += ", Compared";
+          }
+        } else if (std::dynamic_pointer_cast<LoadInstruction>(instr) != nullptr){
+          output += ", Loaded";
+        } else if (std::dynamic_pointer_cast<StoreInstruction>(instr) != nullptr){
+          auto store_cast = std::dynamic_pointer_cast<StoreInstruction>(instr);
+          if (store_cast->get_stored_register().get_identifier() == reg_name[1]){
+            output += ", Store";
+          }
+        } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr) != nullptr){
+          auto ptradd_cast = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
+          if (ptradd_cast->get_result_register().get_identifier() == reg_name[1]){
+            output += ", PtrAdd";
+          }
+        }
+
+      }
     }
     output += "};\n";
   }
