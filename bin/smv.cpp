@@ -68,7 +68,19 @@ std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::strin
       "E [( locations = main-bb0) U (locations != main-bb0)]",
       "EG ((locations = strcat-bb0) -> (EX (locations = system-bb0)))",
       "EG ( (locations = main-bb5 & %1 = Unassigned) -> EX (locations = main-bb6 & %1 = Assigned) -> EX ( locations = strcat-bb0))"
-  }}}
+  }}},
+  { "outOfControll", {CTLReplaceType::None, {
+       "AG (locations = main-bb0) -> AF (locations = fork-bb0) -> AF (locations = fork-bb0)-> AF (locations = fork-bb0)",
+       "EF( locations = consume_memory-bb0) -> EF (locations = free-bb0) -> EF (locations = malloc-bb0)",
+       "EG (locations = main-bb0 ) -> (EF E[(locations != close-bb0) U (locations = socket-bb0)])",
+  }}},
+  { "passwordLeak", {CTLReplaceType::None, {
+       "EG ( locations = main-bb0) -> EF(locations = fopen-bb0) -> EF E[(locations != fclose-bb0) U (locations = fwrite-bb0 & %1 = Modified)]",
+  }}},
+  { "elevatedPrivileges", {CTLReplaceType::Register,{
+       "EG (locations = main-bb0 & %1 = Unassigned) -> EF (locations = check_root_access-bb2 & %1 = Assigned & %1 = Unassigned) -> AF (locations = reeboot-bb2 & %1 = Assigned)",
+       "E [(%1 = Unassigned) U (%1 = Assigned)]",
+  }}},
 };
 
 
