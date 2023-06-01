@@ -864,6 +864,7 @@ class LocationSpec : public Spec {
     
     LocationSpec* add_instruction(MiniMC::Model::Instruction instruction, MiniMC::Model::Program_ptr program) {
       if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Ret || instruction.getOpcode() == MiniMC::Model::InstructionCode::RetVoid) {
+        std::cout << "Location " << get_full_name() << " has return instruction" << std::endl;
         has_return = true;
       } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Call) {
         auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
