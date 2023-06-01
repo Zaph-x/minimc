@@ -21,7 +21,6 @@ void LocationSpec::assign_next(SmvSpec& parent_spec, std::string identifier, std
 
 void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionSpec>& instr, const std::string& location_name, const std::string& basic_block) {
   const auto& location = spec.get_location(location_name+"-bb"+basic_block);
-  std::cout << instr->to_string() << std::endl;
   if (std::dynamic_pointer_cast<CallInstruction>(instr) != nullptr) {
     const auto& call_instr = std::dynamic_pointer_cast<CallInstruction>(instr);
     if (!call_instr->get_result_register().is_null_register()) {
@@ -56,7 +55,7 @@ void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionS
     // If POINTEROPS (PtrAdd, PtrEq) or LOAD/STORE (Memory)
 }
 
-void generate_spec_paths(SmvSpec spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function) {
+void generate_spec_paths(SmvSpec &spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function) {
   for (auto& edge : function->getCFA().getEdges()) {
     std::string locName = std::to_string(edge->getFrom()->getID());
     spec.add_location(function->getSymbol().getName(), locName)->add_instructions(edge->getInstructions(), prg);
@@ -69,18 +68,16 @@ void generate_spec_paths(SmvSpec spec, MiniMC::Model::Program_ptr& prg, const st
 SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
   SmvSpec spec;
 
-
   for (auto& function : prg->getFunctions()) {
-    //To handle the naming scheme of intrinsics
     std::string func_name = function->getSymbol().getName();
     boost::replace_all(func_name, ".", "-");
-    for (auto& edge : function->getCFA().getEdges()) {
-      std::string locName = std::to_string(edge->getFrom()->getID());
-      spec.add_location(func_name, locName)->add_instructions(edge->getInstructions(), prg);
-      for (const auto& instr : spec.get_last_location()->get_instructions()) {
-        assign_vars_and_registers(spec, instr, func_name, locName);
-      }
-    }
+    generate_spec_paths(spec, prg, function);
+  }
+
+  for (auto& function : prg->getFunctions()) {
+    std::string func_name = function->getSymbol().getName();
+    boost::replace_all(func_name, ".", "-");
+    //To handle the naming scheme of intrinsics
     for (auto& edge : function->getCFA().getEdges()) {
       std::string locName = std::to_string(edge->getFrom()->getID());
       std::string nextLocName = std::to_string(edge->getTo()->getID());
@@ -88,7 +85,11 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
 
         auto& called_function = spec.get_location(func_name+"-bb"+locName)->get_called_function();
 
+        std::cout << "" + called_function << std::endl;
+        std::cout << "Size of return locations: " << spec.get_returning_locations(called_function).size() << std::endl;
+
         for (auto& ret_loc : spec.get_returning_locations(called_function)) {
+          std::cout << "Assigning next to " << func_name+"-bb"+locName << " to " << ret_loc->get_identifier() << std::endl;
           ret_loc->assign_next(spec, func_name, nextLocName);
         }
         continue;
@@ -160,7 +161,6 @@ std::string write_register_transitions(const std::string& name, const std::vecto
   std::string output = "";
   output += "ASSIGN next(" + name + ") :=\n  case\n";
   for (unsigned long int i = 0; i < locations.size(); i++) {
-    std::cout << locations[i]->get_full_name() << std::endl;
     auto instr_list = locations[i]->get_instructions();
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {

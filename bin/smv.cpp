@@ -53,22 +53,22 @@ std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::strin
   {"double_free", {CTLReplaceType::Register, {
       "AG ((locations = free-bb0 & %1 = Assigned) -> EX(%1 != Modified & AF (locations = free-bb0 & %1 = NonDet)))"
   }}},
-  {"xor-files", {CTLReplaceType::None, {
-      "EG ((locations = fopen-bb0 & main-reg22 != Xored & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & main-reg22 = Unassigned ))",
-      "AG ((locations = fopen-bb0 & main-reg22 != Xored ) -> EF ( EX (locations = fwrite-bb0 & main-reg22 = Xored)))",
-       "E [(locations != fread-bb0 & main-reg7 != Assigned & main-reg9 != Assigned) U ((locations = fopen-bb0) & (main-reg7 = Assigned) & (main-reg9 = Unassigned))]",
-       "A [(locations != fread-bb0 & main-reg7 != Assigned & main-reg9 != Assigned) U ((locations = fopen-bb0) & (main-reg7 = Assigned) & (main-reg9 = Unassigned))]",
-        "!A [ !(locations != fwrite-bb0) U ! ((main-reg7 = Assigned & main-reg9 = Assigned) | locations != fwrite-bb0)]",
+  {"xor-files", {CTLReplaceType::Register, {
+      "EG ((locations = fopen-bb0 & %1 != Xored & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & %1 = Unassigned ))",
+      "AG ((locations = fopen-bb0 & %1 != Xored ) -> EF ( EX (locations = fwrite-bb0 & %1 = Xored)))",
+       "E [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
+       "A [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
+       "!A [ !(locations != fwrite-bb0) U ! ((%1 = Assigned & %1 = Assigned) | locations != fwrite-bb0)]",
        // Weak Until here to ensure that
        // There does not exist a path such that
        // That there is not a location that is not fwrite-bbo until
        // Main reg 7 and 9 are not set to Assigned or locations is set to fwrite
-   }}},
-  { "cInject", {CTLReplaceType::None, {
+  }}},
+  { "cInject", {CTLReplaceType::Register, {
       "E [( locations = main-bb0) U (locations != main-bb0)]",
       "EG ((locations = strcat-bb0) -> (EX (locations = system-bb0)))",
-      "EG ( (locations = main-bb5 & main-reg33 = Unassigned) -> EX (locations = main-bb6 & main-reg33 = Assigned) -> EX ( locations = strcat-bb0))"
-                                      }}}
+      "EG ( (locations = main-bb5 & %1 = Unassigned) -> EX (locations = main-bb6 & %1 = Assigned) -> EX ( locations = strcat-bb0))"
+  }}}
 };
 
 
