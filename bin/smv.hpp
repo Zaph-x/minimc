@@ -171,6 +171,8 @@ std::string write_register_transitions(const std::string& name, const std::vecto
       output += "Assigned";
     }
     if (!instr_list.empty()){
+      std::vector<std::string> reg_name;
+      boost::split(reg_name, name, boost::is_any_of("-"));
       for (auto instr: instr_list){
         if (std::dynamic_pointer_cast<TACInstruction>(instr)){
           auto tac_cast = std::dynamic_pointer_cast<TACInstruction>(instr);
@@ -179,15 +181,18 @@ std::string write_register_transitions(const std::string& name, const std::vecto
           } else if (tac_cast->operation == "ICMP"){
             output += ", Compared";
           }
-        } else if (std::dynamic_pointer_cast<LoadInstruction>(instr)){
-          auto load_cast = std::dynamic_pointer_cast<LoadInstruction>(instr);
+        } else if (std::dynamic_pointer_cast<LoadInstruction>(instr) != nullptr){
           output += ", Loaded";
-        } else if (std::dynamic_pointer_cast<StoreInstruction>(instr)){
+        } else if (std::dynamic_pointer_cast<StoreInstruction>(instr) != nullptr){
           auto store_cast = std::dynamic_pointer_cast<StoreInstruction>(instr);
-          output += ", Store";
-        } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr)){
+          if (store_cast->get_stored_register().get_identifier() == reg_name[1]){
+            output += ", Store";
+          }
+        } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr) != nullptr){
           auto ptradd_cast = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
-          output += ", PtrAdd";
+          if (ptradd_cast->get_result_register().get_identifier() == reg_name[1]){
+            output += ", PtrAdd";
+          }
         }
 
       }
