@@ -140,17 +140,20 @@ namespace {
     desc.add_options()("ctl.debug", po::value<int>()->default_value(0)->notifier(setDebug), "Debug instead of running CTL analysis (0 = no, 1 = yes)");
     od.add(desc);
   }
-}; 
+};
 
 MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::CPA::AnalysisBuilder& cpa) {
   MiniMC::Support::Messager messager{};
   auto prg = ctrl.getProgram();
   SmvSpec spec = generate_smv_spec(prg);
 
-  
-
   if (opts.debug) {
     messager.message("Debugging mode enabled");
+  }
+
+  spec.reduce();
+
+  if (opts.debug) {
     spec.print();
   }
   spec.write("smv.smv", opts.spec, ctl_specs);

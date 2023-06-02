@@ -1,12 +1,15 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
 #include <memory>
+#include <cmath>
 #include <unordered_map>
 #include <tuple>
 #include "loaders/loader.hpp"
 #include <regex>
 #include <boost/algorithm/string.hpp>
+#include <type_traits>
 
 #include <boost/preprocessor.hpp>
 
@@ -51,6 +54,34 @@ class ValueSpec : public Spec {
     std::string identifier;
 };
 
+template<class T>
+struct is_shared_ptr : std::false_type {};
+
+template<class T>
+struct is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
+
+template <typename T>
+class unique_vector : public std::vector<T> {
+  public:
+    void push_back(T&& value) {
+      for (auto& v : *this) {
+        if (*v == *value) {
+          return;
+        }
+      }
+      std::vector<T>::push_back(value);
+    }
+
+    void push_back(const T& value) {
+      for (auto& v : *this) {
+        if (*v == *value) {
+          return;
+        }
+      }
+      std::vector<T>::push_back(value);
+    }
+};
+
 class RegisterSpec : ValueSpec {
   public:
     RegisterSpec(std::string identifier, SmvType type) 
@@ -61,6 +92,7 @@ class RegisterSpec : ValueSpec {
         identifier = std::dynamic_pointer_cast<MiniMC::Model::Register>(value)->getSymbol().getName();
         boost::replace_all(identifier, ".", "_");
         boost::replace_all(identifier, ":", "_");
+        boost::replace_all(identifier, "tmp", "reg");
         boost::replace_all(identifier, "tmp", "reg");
         return;
       }
@@ -90,6 +122,9 @@ class RegisterSpec : ValueSpec {
     std::vector<std::string>& get_values() {return values;}
     std::vector<std::shared_ptr<LocationSpec>> next;
 
+    bool operator== (const RegisterSpec& other) const {
+      return identifier == other.identifier;
+    }
 
   private:
     std::string identifier;
@@ -151,6 +186,10 @@ class SmvVarSpec : public Spec {
 
     std::vector<std::string>& get_values() {
       return values;
+    }
+
+    bool operator== (const SmvVarSpec& other) const {
+      return identifier == other.identifier;
     }
 
 
@@ -844,8 +883,16 @@ class LocationSpec : public Spec {
       return result;
     }
 
+    void add_next(std::shared_ptr<LocationSpec> next_loc) {
+      next.push_back(next_loc);
+    }
+
     std::vector<std::shared_ptr<InstructionSpec>> get_instructions() {
       return instructions;
+    }
+
+    void reduce(std::vector<std::shared_ptr<LocationSpec>> next) {
+      this->next = next;
     }
 
     std::string& get_called_function() {
@@ -882,6 +929,10 @@ class LocationSpec : public Spec {
       return this;
     }
 
+    void clear_next() {
+      next.clear();
+    }
+
     LocationSpec* add_instructions(MiniMC::Model::InstructionStream instructions, MiniMC::Model::Program_ptr program) {
       for (auto& instruction : instructions) {
         add_instruction(instruction, program);
@@ -891,6 +942,13 @@ class LocationSpec : public Spec {
     
     std::string& get_identifier() {
       return identifier;
+    }
+
+    void set_visited() {is_visited = true;}
+    bool has_been_visited() const {return is_visited;}
+
+    std::string& get_bb_location() {
+      return bb_location;
     }
 
     std::string write() {
@@ -918,6 +976,7 @@ class LocationSpec : public Spec {
     bool has_return = false;
     std::string called_function;
     SmvSpec& parent_spec;
+    bool is_visited = false;
 
 
 };
@@ -946,6 +1005,8 @@ class SmvSpec {
     void add_var(std::string identifier, SmvType type);
     std::shared_ptr<LocationSpec> get_location(std::string name); 
     void print();
+    void reduce();
+    std::shared_ptr<LocationSpec> reduce(std::shared_ptr<LocationSpec>& spec);
     void write(const std::string filename, const std::string& spec, std::vector<ctl_spec>& ctl_map);
     std::shared_ptr<LocationSpec> get_last_location() {
       return locations.back();
@@ -979,10 +1040,20 @@ class SmvSpec {
       return nullptr;
     }
 
+    __uint128_t get_state_space_size() {
+      std::cout << "Locations: " << locations.size() << std::endl;
+      std::cout << "Registers: " << registers.size() << std::endl;
+      __uint128_t loc_size = locations.size();
+      __uint128_t reg_size = std::lround(std::pow(7, registers.size()));
+      return loc_size * reg_size;
+    }
+
   private:
-    std::vector<std::shared_ptr<LocationSpec>> locations;
-    std::vector<std::shared_ptr<RegisterSpec>> registers;
-    std::vector<std::shared_ptr<SmvVarSpec>> vars;
+    unique_vector<std::shared_ptr<LocationSpec>> locations;
+    unique_vector<std::shared_ptr<LocationSpec>> reduced_locations;
+    unique_vector<std::shared_ptr<RegisterSpec>> registers;
+    unique_vector<std::shared_ptr<SmvVarSpec>> vars;
+    std::shared_ptr<LocationSpec> find_reduction_candidate(std::shared_ptr<LocationSpec>& location);
 };
 
 
