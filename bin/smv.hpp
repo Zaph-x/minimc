@@ -21,6 +21,7 @@ void LocationSpec::assign_next(SmvSpec& parent_spec, std::string identifier, std
 
 void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionSpec>& instr, const std::string& location_name, const std::string& basic_block) {
   const auto& location = spec.get_location(location_name+"-bb"+basic_block);
+  if (location == nullptr) return;
   if (std::dynamic_pointer_cast<CallInstruction>(instr) != nullptr) {
     const auto& call_instr = std::dynamic_pointer_cast<CallInstruction>(instr);
     if (!call_instr->get_result_register().is_null_register()) {
@@ -48,7 +49,7 @@ void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionS
     spec.add_register(location_name + "-" + LoadInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
   } else if (std::dynamic_pointer_cast<StoreInstruction>(instr)){
     const auto& StoreInstr = std::dynamic_pointer_cast<StoreInstruction>(instr);
-    //spec.add_register(location_name + "-" + StoreInstr->get_stored_register().get_identifier(), SmvType::Int)->add_next(location);
+    spec.add_register(location_name + "-" + StoreInstr->get_stored_register().get_identifier(), SmvType::Int)->add_next(location);
   }
 
 
@@ -161,6 +162,7 @@ std::string write_register_transitions(const std::string& name, const std::vecto
   std::string output = "";
   output += "ASSIGN next(" + name + ") :=\n  case\n";
   for (unsigned long int i = 0; i < locations.size(); i++) {
+    if (locations[i] == nullptr) continue;
     auto instr_list = locations[i]->get_instructions();
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {
@@ -182,7 +184,7 @@ std::string write_register_transitions(const std::string& name, const std::vecto
             output += ", Compared";
           }
         } else if (std::dynamic_pointer_cast<LoadInstruction>(instr) != nullptr){
-          output += ", Loaded";
+          output += ", Load";
         } else if (std::dynamic_pointer_cast<StoreInstruction>(instr) != nullptr){
           auto store_cast = std::dynamic_pointer_cast<StoreInstruction>(instr);
           if (store_cast->get_stored_register().get_identifier() == reg_name[1]){
