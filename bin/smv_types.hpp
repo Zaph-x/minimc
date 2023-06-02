@@ -10,6 +10,8 @@
 #include <regex>
 #include <boost/algorithm/string.hpp>
 #include <type_traits>
+#include <iostream>
+#include <cstdarg>
 
 #include <boost/preprocessor.hpp>
 
@@ -63,19 +65,46 @@ struct is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
 template <typename T>
 class unique_vector : public std::vector<T> {
   public:
+    unique_vector() = default;
+
+    unique_vector(std::initializer_list<T> init) {
+      for (const T& val : init) {
+        push_back(val);
+      }
+    }
+
+
+    using std::vector<T>::push_back;
+
     void push_back(T&& value) {
-      for (auto& v : *this) {
-        if (*v == *value) {
-          return;
+      if constexpr (is_shared_ptr<T>::value) {
+        for (const auto& v : *this) {
+          if (*v == *value) {
+            return;
+          }
+        }
+      } else {
+        for (const auto& v : *this) {
+          if (v == value) {
+            return;
+          }
         }
       }
       std::vector<T>::push_back(value);
     }
 
     void push_back(const T& value) {
-      for (auto& v : *this) {
-        if (*v == *value) {
-          return;
+      if constexpr (is_shared_ptr<T>::value) {
+        for (const auto& v : *this) {
+          if (*v == *value) {
+            return;
+          }
+        }
+      } else {
+        for (const auto& v : *this) {
+          if (v == value) {
+            return;
+          }
         }
       }
       std::vector<T>::push_back(value);
@@ -119,9 +148,9 @@ class RegisterSpec : ValueSpec {
     constexpr bool is_register() {return true;}
     constexpr std::string write() {return "VAR " + identifier + " : TODO:WRITE_HERE;\n";}
     std::string& get_identifier() {return identifier;}
-    std::vector<std::string>& get_values() {return values;}
+    unique_vector<std::string>& get_values() {return values;}
     std::vector<std::shared_ptr<LocationSpec>> next;
-
+    RegisterSpec* add_possible_state(std::string state) {values.push_back(state); return this;}
     bool operator== (const RegisterSpec& other) const {
       return identifier == other.identifier;
     }
@@ -129,7 +158,7 @@ class RegisterSpec : ValueSpec {
   private:
     std::string identifier;
     SmvType type = SmvType::Unknown;
-    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet", "Xored", "Store", "Load", "PtrAdd", "Compared"};
+    unique_vector<std::string> values = {"Unassigned", "Assigned"};
     bool is_null = false;
 };
 
@@ -144,6 +173,7 @@ class ImmediateValueSpec : public ValueSpec {
     std::string to_string() {
       return value;
     }
+
     bool is_register() {
       return false;
     }
@@ -333,6 +363,9 @@ class TACInstruction : public InstructionSpec {
     RegisterSpec& get_result_register() {
       return result_register;
     }
+
+    std::string get_lhs(){return lhs;}
+    std::string get_rhs(){return rhs;}
 
   private:
     MiniMC::Model::Instruction instruction;
@@ -1040,13 +1073,15 @@ class SmvSpec {
       return nullptr;
     }
 
-    __uint128_t get_state_space_size() {
-      std::cout << "Locations: " << locations.size() << std::endl;
-      std::cout << "Registers: " << registers.size() << std::endl;
-      __uint128_t loc_size = locations.size();
-      __uint128_t reg_size = std::lround(std::pow(7, registers.size()));
-      return loc_size * reg_size;
-    }
+    std::shared_ptr<RegisterSpec>  get_register(const std::string& basicString);
+
+    unsigned long long int get_locations_size();
+
+    unsigned long long int get_registers_size();
+
+    unsigned long long int get_reduced_locations_size();
+
+    int get_approx_register_states();
 
   private:
     unique_vector<std::shared_ptr<LocationSpec>> locations;

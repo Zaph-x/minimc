@@ -149,9 +149,16 @@ MiniMC::Host::ExitCodes ctl_main(MiniMC::Model::Controller& ctrl, const MiniMC::
 
   if (opts.debug) {
     messager.message("Debugging mode enabled");
+    messager.message("Amount of locations in model: " + std::to_string(spec.get_locations_size()));
+    messager.message("Amount of registers in model: " + std::to_string(spec.get_registers_size()));
+    messager.message("Approximate average amount of register states: " + std::to_string(spec.get_approx_register_states()));
   }
 
   spec.reduce();
+
+  if (opts.debug) {
+    messager.message("Amount of locations in model after reduction: " + std::to_string(spec.get_reduced_locations_size()));
+  }
 
   if (opts.debug) {
     spec.print();

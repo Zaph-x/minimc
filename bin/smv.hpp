@@ -19,6 +19,18 @@ inline void LocationSpec::assign_next(SmvSpec& parent_spec, std::string identifi
   next.push_back(std::make_shared<LocationSpec>(identifier, bb_location, parent_spec));
 }
 
+inline std::string format_reg(const std::string& real) {
+  std::string name = real;
+  boost::replace_all(name, ".", "_");
+  boost::replace_all(name, ":", "-");
+  boost::replace_all(name, "tmp", "reg");
+  boost::replace_all(name, "tmp", "reg");
+  std::regex re("<([\\w\\d_-]+)");
+  std::smatch match;
+  std::regex_search(name, match, re);
+  return match[1];
+}
+
 inline void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<InstructionSpec>& instr, const std::string& location_name, const std::string& basic_block) {
   const auto& location = spec.get_location(location_name+"-bb"+basic_block);
   if (location == nullptr) return;
@@ -26,7 +38,6 @@ inline void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<Instr
     const auto& call_instr = std::dynamic_pointer_cast<CallInstruction>(instr);
     if (!call_instr->get_result_register().is_null_register()) {
       spec.add_register(location_name + "-" + call_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
-      
     }
     if (!call_instr->get_params().empty()) {
       for (const auto& args : call_instr->get_params()) {
@@ -40,16 +51,28 @@ inline void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<Instr
     // Does not seems to do anything yet. - Mkk
     const auto& tac_instr = std::dynamic_pointer_cast<TACInstruction>(instr);
     // Multiple TACOps of the same type can occur in a single block. This should be handled, but is probably an edge case(At least for Xor, this is for demo purpose).
-    spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+    // TODO Revise if this is the proper way to check the operation type. Do we need more?
+    if (tac_instr->operation == "Xor")
+      spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_possible_state(tac_instr->operation)->add_next(location);
+    else if (tac_instr->operation.starts_with("ICMP")) {
+      if (spec.get_register(format_reg(tac_instr->get_lhs())) != nullptr) {
+        spec.get_register(format_reg(tac_instr->get_lhs()))->add_possible_state("Compared")->add_next(location);
+      }
+      if (spec.get_register(format_reg(tac_instr->get_rhs())) != nullptr) {
+        spec.get_register(format_reg(tac_instr->get_rhs()))->add_possible_state("Compared")->add_next(location);
+      }
+      spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+    } else
+      spec.add_register(location_name + "-" + tac_instr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
   } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr)){
     const auto& PtrAddInstr = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
-    spec.add_register(location_name + "-" + PtrAddInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+    spec.add_register(location_name + "-" + PtrAddInstr->get_result_register().get_identifier(), SmvType::Int)->add_possible_state("PtrAdd")->add_next(location);
   } else if (std::dynamic_pointer_cast<LoadInstruction>(instr)){
     const auto& LoadInstr = std::dynamic_pointer_cast<LoadInstruction>(instr);
-    spec.add_register(location_name + "-" + LoadInstr->get_result_register().get_identifier(), SmvType::Int)->add_next(location);
+    spec.add_register(location_name + "-" + LoadInstr->get_result_register().get_identifier(), SmvType::Int)->add_possible_state("Load")->add_next(location);
   } else if (std::dynamic_pointer_cast<StoreInstruction>(instr)){
     const auto& StoreInstr = std::dynamic_pointer_cast<StoreInstruction>(instr);
-    spec.add_register(location_name + "-" + StoreInstr->get_stored_register().get_identifier(), SmvType::Int)->add_next(location);
+    spec.add_register(location_name + "-" + StoreInstr->get_stored_register().get_identifier(), SmvType::Int)->add_possible_state("Store")->add_next(location);
   }
 
 
@@ -151,7 +174,7 @@ std::string write_listed_variable(const std::string& name, const unique_vector<s
   return output;
 }
 
-inline std::string write_register_transitions(const std::string& name, const std::vector<std::shared_ptr<LocationSpec>>& locations) {
+inline std::string write_register_transitions(SmvSpec& spec, const std::string& name, const std::vector<std::shared_ptr<LocationSpec>>& locations) {
   if (locations.empty()) {
     return "";
   }
@@ -162,8 +185,10 @@ inline std::string write_register_transitions(const std::string& name, const std
     auto instr_list = locations[i]->get_instructions();
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {
+      spec.get_register(name)->add_possible_state("NonDet");
       output += "NonDet";
     } else if (i > 0) {
+      spec.get_register(name)->add_possible_state("Modified");
       output += "Modified";
     } else {
       output += "Assigned";
@@ -175,20 +200,24 @@ inline std::string write_register_transitions(const std::string& name, const std
         if (std::dynamic_pointer_cast<TACInstruction>(instr)){
           auto tac_cast = std::dynamic_pointer_cast<TACInstruction>(instr);
           if (tac_cast->operation == "Xor"){
-            output += ", Xored";
-          } else if (tac_cast->operation.starts_with("ICMP")){
+            output += ", Xor";
+          } else if (tac_cast->operation.starts_with("ICMP") && tac_cast->get_result_register().get_identifier() != spec.get_register(name)->get_identifier()){
+            spec.get_register(name)->add_possible_state("Compared");
             output += ", Compared";
           }
         } else if (std::dynamic_pointer_cast<LoadInstruction>(instr) != nullptr){
+          spec.get_register(name)->add_possible_state("Load");
           output += ", Load";
         } else if (std::dynamic_pointer_cast<StoreInstruction>(instr) != nullptr){
           auto store_cast = std::dynamic_pointer_cast<StoreInstruction>(instr);
           if (store_cast->get_stored_register().get_identifier() == reg_name[1]){
+            spec.get_register(name)->add_possible_state("Store");
             output += ", Store";
           }
         } else if (std::dynamic_pointer_cast<PtrAddInstruction>(instr) != nullptr){
           auto ptradd_cast = std::dynamic_pointer_cast<PtrAddInstruction>(instr);
           if (ptradd_cast->get_result_register().get_identifier() == reg_name[1]){
+            spec.get_register(name)->add_possible_state("PtrAdd");
             output += ", PtrAdd";
           }
         }
@@ -230,8 +259,8 @@ inline void SmvSpec::write(const std::string file_name, const std::string& spec,
   output += write_variable_block("locations", reduced_locations);
   output += "ASSIGN init(locations) := {main-bb0};\n";
   for (const auto& reg : registers) {
+    output += write_register_transitions(*this, reg->get_identifier(), reg->get_next());
     output += write_listed_variable(reg->get_identifier(), reg->get_values());
-    output += write_register_transitions(reg->get_identifier(), reg->get_next());
   }
   for (const auto& var : vars) {
     output += write_listed_variable(var->get_identifier(), var->get_values());
@@ -324,4 +353,26 @@ void SmvSpec::reduce() {
     throw std::runtime_error("No main-bb0 location");
   }
   reduce(main_bb0);
+}
+std::shared_ptr<RegisterSpec> SmvSpec::get_register(const std::string& name) {
+  for (auto& reg : registers) {
+    if (reg->get_identifier() == name) return reg;
+  }
+  return nullptr;
+}
+unsigned long long int SmvSpec::get_locations_size() {
+  return locations.size();
+}
+unsigned long long int SmvSpec::get_registers_size() {
+  return registers.size();
+}
+unsigned long long int SmvSpec::get_reduced_locations_size() {
+  return reduced_locations.size();
+}
+int SmvSpec::get_approx_register_states() {
+  int ctr = 0;
+  for (auto& reg : registers) {
+    ctr += reg->get_values().size();
+  }
+  return ceil((double)ctr / (double)registers.size());
 }
