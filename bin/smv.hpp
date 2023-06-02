@@ -182,7 +182,7 @@ std::string write_register_transitions(const std::string& name, const std::vecto
             output += ", Compared";
           }
         } else if (std::dynamic_pointer_cast<LoadInstruction>(instr) != nullptr){
-          output += ", Loaded";
+          output += ", Load";
         } else if (std::dynamic_pointer_cast<StoreInstruction>(instr) != nullptr){
           auto store_cast = std::dynamic_pointer_cast<StoreInstruction>(instr);
           if (store_cast->get_stored_register().get_identifier() == reg_name[1]){
