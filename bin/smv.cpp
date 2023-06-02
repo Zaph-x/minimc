@@ -45,15 +45,15 @@ std::string exec_cmd(const char* cmd) {
  * END UTILITY FUNCTIONS
  * */
 
-std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::string>>> ctl_specs = {
-  {"unsafe_fork", {CTLReplaceType::None, {
+std::vector<ctl_spec> ctl_specs = {
+  {.ctl_spec_name={"unsafe_fork", "cwe_400"}, .replace_type=CTLReplaceType::None, .ctl_specs={
       "AG (locations = fork-bb0 -> AX(AF locations = fork-bb0))",
       "AG (locations = fork-bb0 -> AX(EF locations = fork-bb0))",
-  }}},
-  {"double_free", {CTLReplaceType::Register, {
+  }},
+  {.ctl_spec_name{"double_free", "cwe_415", "cwe_825", "cwe_1341"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
       "AG ((locations = free-bb0 & %1 = Assigned) -> EX(%1 != Modified & AF (locations = free-bb0 & %1 = NonDet)))"
-  }}},
-  {"xor-files", {CTLReplaceType::Register, {
+  }},
+  {.ctl_spec_name={"xor_files"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
       "EG ((locations = fopen-bb0 & %1 != Xored & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & %1 = Unassigned ))",
       "AG ((locations = fopen-bb0 & %1 != Xored ) -> EF ( EX (locations = fwrite-bb0 & %1 = Xored)))",
        "E [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
@@ -63,24 +63,24 @@ std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::strin
        // There does not exist a path such that
        // That there is not a location that is not fwrite-bbo until
        // Main reg 7 and 9 are not set to Assigned or locations is set to fwrite
-  }}},
-  { "cInject", {CTLReplaceType::Register, {
+  }},
+  {.ctl_spec_name={"command_injection"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
       "E [( locations = main-bb0) U (locations != main-bb0)]",
       "EG ((locations = strcat-bb0) -> (EX (locations = system-bb0)))",
       "EG ( (locations = main-bb5 & %1 = Unassigned) -> EX (locations = main-bb6 & %1 = Assigned) -> EX ( locations = strcat-bb0))"
-  }}},
-  { "outOfControll", {CTLReplaceType::None, {
+  }},
+  {.ctl_spec_name={"out_of_control"}, .replace_type=CTLReplaceType::None, .ctl_specs={
        "AG (locations = main-bb0) -> AF (locations = fork-bb0) -> AF (locations = fork-bb0)-> AF (locations = fork-bb0)",
-       "EF( locations = consume_memory-bb0) -> EF (locations = free-bb0) -> EF (locations = malloc-bb0)",
+       //"EF( locations = consume_memory-bb0) -> EF (locations = free-bb0) -> EF (locations = malloc-bb0)",
        "EG (locations = main-bb0 ) -> (EF E[(locations != close-bb0) U (locations = socket-bb0)])",
-  }}},
-  { "passwordLeak", {CTLReplaceType::None, {
+  }},
+  {.ctl_spec_name={"password_leak"}, .replace_type=CTLReplaceType::None, .ctl_specs={
        "EG ( locations = main-bb0) -> EF(locations = fopen-bb0) -> EF E[(locations != fclose-bb0) U (locations = fwrite-bb0 & %1 = Modified)]",
-  }}},
-  { "elevatedPrivileges", {CTLReplaceType::Register,{
+  }},
+  {.ctl_spec_name={"elevated_privileges"}, .replace_type=CTLReplaceType::Register,.ctl_specs={
        "EG (locations = main-bb0 & %1 = Unassigned) -> EF (locations = check_root_access-bb2 & %1 = Assigned & %1 = Unassigned) -> AF (locations = reeboot-bb2 & %1 = Assigned)",
        "E [(%1 = Unassigned) U (%1 = Assigned)]",
-  }}},
+  }},
 };
 
 

@@ -4,9 +4,9 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include <unordered_map>
 #include "loaders/loader.hpp"
-#include "cpa/concrete.hpp"
 #include "model/output.hpp"
 #include "smv_types.hpp"
 #include <boost/algorithm/string.hpp>
@@ -85,11 +85,7 @@ SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
 
         auto& called_function = spec.get_location(func_name+"-bb"+locName)->get_called_function();
 
-        std::cout << "" + called_function << std::endl;
-        std::cout << "Size of return locations: " << spec.get_returning_locations(called_function).size() << std::endl;
-
         for (auto& ret_loc : spec.get_returning_locations(called_function)) {
-          std::cout << "Assigning next to " << func_name+"-bb"+locName << " to " << ret_loc->get_identifier() << std::endl;
           ret_loc->assign_next(spec, func_name, nextLocName);
         }
         continue;
@@ -225,7 +221,7 @@ std::string write_ctl_spec(const std::string& spec) {
   return "CTLSPEC\n" + spec + ";\n";
 }
 
-void SmvSpec::write(const std::string file_name, const std::string& ctl_spec, std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::string>>>& ctl_specs) {
+void SmvSpec::write(const std::string file_name, const std::string& spec, std::vector<ctl_spec>& ctl_specs) {
   std::ofstream file(file_name);
   std::string output = "-- Output generated automatically by MiniMC\n";
   output += "MODULE main\n";
@@ -239,22 +235,31 @@ void SmvSpec::write(const std::string file_name, const std::string& ctl_spec, st
     output += write_listed_variable(var->get_identifier(), var->get_values());
   }
 
-  if (ctl_specs.find(ctl_spec) != ctl_specs.end()) {
-    auto& tuple = ctl_specs[ctl_spec];
-    for (const auto& spec : std::get<1>(tuple)) {
-      auto replace_type = std::get<0>(tuple);
-      if (replace_type == CTLReplaceType::None) {
-        output += write_ctl_spec(spec);
-      } else if (replace_type == CTLReplaceType::Register) {
+  std::string ctl_spec_output = "";
 
-        for (const auto& reg : registers) {
-          std::string result = write_ctl_spec(spec);
-          boost::replace_all(result, "%1", reg->get_identifier());
-          output += result;
+  for (const auto& ctlspec : ctl_specs) {
+    for (const auto& name : ctlspec.ctl_spec_name) {
+      if (name == spec) {
+        if (ctlspec.replace_type == CTLReplaceType::None) {
+          for (const auto& spec : ctlspec.ctl_specs) {
+            ctl_spec_output += write_ctl_spec(spec);
+          }
+        } else if (ctlspec.replace_type == CTLReplaceType::Register) {
+
+          for (const auto& reg : registers) {
+            std::string result = write_ctl_spec(spec);
+            boost::replace_all(result, "%1", reg->get_identifier());
+            ctl_spec_output += result;
+          }
         }
-      }    }
+      }
+    }
+  }
+
+  if (ctl_spec_output.empty()) {
+    output += write_ctl_spec(spec);
   } else {
-    output += write_ctl_spec(ctl_spec);
+    output += ctl_spec_output;
   }
 
   file << output << std::endl;
