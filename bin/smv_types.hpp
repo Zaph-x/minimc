@@ -36,7 +36,6 @@ DEFINE_ENUM_WITH_STRING_CONVERSIONS(SmvType, (Bool)(Int)(Real)(Enum)(Array)(Reco
 class SmvSpec;
 class LocationSpec;
 
-
 class Spec {
   public:
     virtual std::string to_string() = 0;
@@ -864,7 +863,6 @@ class LocationSpec : public Spec {
     
     LocationSpec* add_instruction(MiniMC::Model::Instruction instruction, MiniMC::Model::Program_ptr program) {
       if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Ret || instruction.getOpcode() == MiniMC::Model::InstructionCode::RetVoid) {
-        std::cout << "Location " << get_full_name() << " has return instruction" << std::endl;
         has_return = true;
       } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Call) {
         auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
@@ -931,6 +929,11 @@ enum class CTLReplaceType {
 };
 
 
+struct ctl_spec {
+  std::vector<std::string> ctl_spec_name;
+  CTLReplaceType replace_type;
+  std::vector<std::string> ctl_specs;
+};
 
 class SmvSpec {
   public:
@@ -943,7 +946,7 @@ class SmvSpec {
     void add_var(std::string identifier, SmvType type);
     std::shared_ptr<LocationSpec> get_location(std::string name); 
     void print();
-    void write(const std::string filename, const std::string& spec, std::unordered_map<std::string, std::tuple<CTLReplaceType,std::vector<std::string>>>& ctl_map);
+    void write(const std::string filename, const std::string& spec, std::vector<ctl_spec>& ctl_map);
     std::shared_ptr<LocationSpec> get_last_location() {
       return locations.back();
     }
