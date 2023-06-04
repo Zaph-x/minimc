@@ -1,12 +1,17 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
 #include <memory>
+#include <cmath>
 #include <unordered_map>
 #include <tuple>
 #include "loaders/loader.hpp"
 #include <regex>
 #include <boost/algorithm/string.hpp>
+#include <type_traits>
+#include <iostream>
+#include <cstdarg>
 
 #include <boost/preprocessor.hpp>
 
@@ -51,6 +56,61 @@ class ValueSpec : public Spec {
     std::string identifier;
 };
 
+template<class T>
+struct is_shared_ptr : std::false_type {};
+
+template<class T>
+struct is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
+
+template <typename T>
+class unique_vector : public std::vector<T> {
+  public:
+    unique_vector() = default;
+
+    unique_vector(std::initializer_list<T> init) {
+      for (const T& val : init) {
+        push_back(val);
+      }
+    }
+
+
+    using std::vector<T>::push_back;
+
+    void push_back(T&& value) {
+      if constexpr (is_shared_ptr<T>::value) {
+        for (const auto& v : *this) {
+          if (*v == *value) {
+            return;
+          }
+        }
+      } else {
+        for (const auto& v : *this) {
+          if (v == value) {
+            return;
+          }
+        }
+      }
+      std::vector<T>::push_back(value);
+    }
+
+    void push_back(const T& value) {
+      if constexpr (is_shared_ptr<T>::value) {
+        for (const auto& v : *this) {
+          if (*v == *value) {
+            return;
+          }
+        }
+      } else {
+        for (const auto& v : *this) {
+          if (v == value) {
+            return;
+          }
+        }
+      }
+      std::vector<T>::push_back(value);
+    }
+};
+
 class RegisterSpec : ValueSpec {
   public:
     RegisterSpec(std::string identifier, SmvType type) 
@@ -61,6 +121,7 @@ class RegisterSpec : ValueSpec {
         identifier = std::dynamic_pointer_cast<MiniMC::Model::Register>(value)->getSymbol().getName();
         boost::replace_all(identifier, ".", "_");
         boost::replace_all(identifier, ":", "_");
+        boost::replace_all(identifier, "tmp", "reg");
         boost::replace_all(identifier, "tmp", "reg");
         return;
       }
@@ -87,14 +148,17 @@ class RegisterSpec : ValueSpec {
     constexpr bool is_register() {return true;}
     constexpr std::string write() {return "VAR " + identifier + " : TODO:WRITE_HERE;\n";}
     std::string& get_identifier() {return identifier;}
-    std::vector<std::string>& get_values() {return values;}
+    unique_vector<std::string>& get_values() {return values;}
     std::vector<std::shared_ptr<LocationSpec>> next;
-
+    RegisterSpec* add_possible_state(std::string state) {values.push_back(state); return this;}
+    bool operator== (const RegisterSpec& other) const {
+      return identifier == other.identifier;
+    }
 
   private:
     std::string identifier;
     SmvType type = SmvType::Unknown;
-    std::vector<std::string> values = {"Unassigned", "Assigned", "Modified", "NonDet", "Xored", "Store", "Load", "PtrAdd", "Compared"};
+    unique_vector<std::string> values = {"Unassigned", "Assigned"};
     bool is_null = false;
 };
 
@@ -109,6 +173,7 @@ class ImmediateValueSpec : public ValueSpec {
     std::string to_string() {
       return value;
     }
+
     bool is_register() {
       return false;
     }
@@ -151,6 +216,10 @@ class SmvVarSpec : public Spec {
 
     std::vector<std::string>& get_values() {
       return values;
+    }
+
+    bool operator== (const SmvVarSpec& other) const {
+      return identifier == other.identifier;
     }
 
 
@@ -294,6 +363,9 @@ class TACInstruction : public InstructionSpec {
     RegisterSpec& get_result_register() {
       return result_register;
     }
+
+    std::string get_lhs(){return lhs;}
+    std::string get_rhs(){return rhs;}
 
   private:
     MiniMC::Model::Instruction instruction;
@@ -844,8 +916,16 @@ class LocationSpec : public Spec {
       return result;
     }
 
+    void add_next(std::shared_ptr<LocationSpec> next_loc) {
+      next.push_back(next_loc);
+    }
+
     std::vector<std::shared_ptr<InstructionSpec>> get_instructions() {
       return instructions;
+    }
+
+    void reduce(std::vector<std::shared_ptr<LocationSpec>> next) {
+      this->next = next;
     }
 
     std::string& get_called_function() {
@@ -882,6 +962,10 @@ class LocationSpec : public Spec {
       return this;
     }
 
+    void clear_next() {
+      next.clear();
+    }
+
     LocationSpec* add_instructions(MiniMC::Model::InstructionStream instructions, MiniMC::Model::Program_ptr program) {
       for (auto& instruction : instructions) {
         add_instruction(instruction, program);
@@ -891,6 +975,13 @@ class LocationSpec : public Spec {
     
     std::string& get_identifier() {
       return identifier;
+    }
+
+    void set_visited() {is_visited = true;}
+    bool has_been_visited() const {return is_visited;}
+
+    std::string& get_bb_location() {
+      return bb_location;
     }
 
     std::string write() {
@@ -918,6 +1009,7 @@ class LocationSpec : public Spec {
     bool has_return = false;
     std::string called_function;
     SmvSpec& parent_spec;
+    bool is_visited = false;
 
 
 };
@@ -946,6 +1038,8 @@ class SmvSpec {
     void add_var(std::string identifier, SmvType type);
     std::shared_ptr<LocationSpec> get_location(std::string name); 
     void print();
+    void reduce();
+    std::shared_ptr<LocationSpec> reduce(std::shared_ptr<LocationSpec>& spec);
     void write(const std::string filename, const std::string& spec, std::vector<ctl_spec>& ctl_map);
     std::shared_ptr<LocationSpec> get_last_location() {
       return locations.back();
@@ -979,10 +1073,22 @@ class SmvSpec {
       return nullptr;
     }
 
+    std::shared_ptr<RegisterSpec>  get_register(const std::string& basicString);
+
+    unsigned long long int get_locations_size();
+
+    unsigned long long int get_registers_size();
+
+    unsigned long long int get_reduced_locations_size();
+
+    int get_approx_register_states();
+
   private:
-    std::vector<std::shared_ptr<LocationSpec>> locations;
-    std::vector<std::shared_ptr<RegisterSpec>> registers;
-    std::vector<std::shared_ptr<SmvVarSpec>> vars;
+    unique_vector<std::shared_ptr<LocationSpec>> locations;
+    unique_vector<std::shared_ptr<LocationSpec>> reduced_locations;
+    unique_vector<std::shared_ptr<RegisterSpec>> registers;
+    unique_vector<std::shared_ptr<SmvVarSpec>> vars;
+    std::shared_ptr<LocationSpec> find_reduction_candidate(std::shared_ptr<LocationSpec>& location);
 };
 
 
