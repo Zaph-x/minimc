@@ -277,10 +277,12 @@ inline void SmvSpec::write(const std::string file_name, const std::string& spec,
           }
         } else if (ctlspec.replace_type == CTLReplaceType::Register) {
 
-          for (const auto& reg : registers) {
-            std::string result = write_ctl_spec(spec);
-            boost::replace_all(result, "%1", reg->get_identifier());
-            ctl_spec_output += result;
+          for (auto ctlspec : ctlspec.ctl_specs){
+            for (const auto& reg : registers) {
+              std::string result = write_ctl_spec(ctlspec);
+              boost::replace_all(result, "%1", reg->get_identifier());
+              ctl_spec_output += result;
+            }
           }
         }
       }

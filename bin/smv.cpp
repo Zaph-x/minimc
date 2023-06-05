@@ -54,14 +54,14 @@ std::vector<ctl_spec> ctl_specs = {
       "AG ((locations = free-bb0 & %1 = Assigned) -> EX(%1 != Modified & AF (locations = free-bb0 & %1 = NonDet)))"
   }},
   {.ctl_spec_name={"xor_files"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
-      "EG ((locations = fopen-bb0 & %1 != Xored & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & %1 = Unassigned ))",
-      "AG ((locations = fopen-bb0 & %1 != Xored ) -> EF ( EX (locations = fwrite-bb0 & %1 = Xored)))",
-       "E [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
-       "A [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
-       "!A [ !(locations != fwrite-bb0) U ! ((%1 = Assigned & %1 = Assigned) | locations != fwrite-bb0)]",
+      "EG ((locations = fopen-bb0 & %1 != Xor & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & %1 = Unassigned ))",
+      "AG ((locations = fopen-bb0 & %1 != Xor ) -> EF ( EX (locations = fwrite-bb0 & %1 = Xored)))",
+      "E [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
+      "A [(locations != fread-bb0 & %1 != Assigned & %1 != Assigned) U ((locations = fopen-bb0) & (%1 = Assigned) & (%1 = Unassigned))]",
+      "!A [ !(locations != fwrite-bb0) U ! ((%1 = Assigned & %1 = Assigned) | locations != fwrite-bb0)]",
        // Weak Until here to ensure that
        // There does not exist a path such that
-       // That there is not a location that is not fwrite-bbo until
+       // That there is not a location that is not fwrite-bbo until.
        // Main reg 7 and 9 are not set to Assigned or locations is set to fwrite
   }},
   {.ctl_spec_name={"command_injection"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
@@ -74,8 +74,8 @@ std::vector<ctl_spec> ctl_specs = {
        //"EF( locations = consume_memory-bb0) -> EF (locations = free-bb0) -> EF (locations = malloc-bb0)",
        "EG (locations = main-bb0 ) -> (EF E[(locations != close-bb0) U (locations = socket-bb0)])",
   }},
-  {.ctl_spec_name={"password_leak"}, .replace_type=CTLReplaceType::None, .ctl_specs={
-       "EG ( locations = main-bb0) -> EF(locations = fopen-bb0) -> EF E[(locations != fclose-bb0) U (locations = fwrite-bb0 & %1 = Modified)]",
+  {.ctl_spec_name={"password_leak"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
+       "AG ( locations = main-bb0) -> AF(locations = fopen-bb0) -> AF A[(locations != fclose-bb0) U (locations = fwrite-bb0 & %1 = Modified)]",
   }},
   {.ctl_spec_name={"elevated_privileges"}, .replace_type=CTLReplaceType::Register,.ctl_specs={
        "EG (locations = main-bb0 & %1 = Unassigned) -> EF (locations = check_root_access-bb2 & %1 = Assigned & %1 = Unassigned) -> AF (locations = reeboot-bb2 & %1 = Assigned)",
