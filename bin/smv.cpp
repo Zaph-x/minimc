@@ -75,6 +75,7 @@ std::vector<ctl_spec> ctl_specs = {
   }},
   {.ctl_spec_name={"password_leak"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
        "AG ( locations = main-bb0) -> AF(locations = fopen-bb0) -> AF A[(locations != fclose-bb0) U (locations = fwrite-bb0 & %1 = Modified)]",
+       "EF (locations = getchar-bb0 & main-reg19 = Assigned) -> E[locations != logKeyPress-bb0 U (locations = main-bb37 & (main-_gep__11 = PtrAdd | main-_gep__11 = Assigned))] -> E[(locations != fwrite-bb0 & logKeyPress-reg14 = Unassigned) U ((EF locations = strlen-bb0 & locations = fopen-bb0) & logKeyPress-reg4 = Assigned)]",
   }},
   {.ctl_spec_name={"elevated_privileges"}, .replace_type=CTLReplaceType::Register,.ctl_specs={
        "EG (locations = main-bb0 & %1 = Unassigned) -> EF (locations = check_root_access-bb2 & %1 = Assigned & %1 = Unassigned) -> AF (locations = reeboot-bb2 & %1 = Assigned)",
