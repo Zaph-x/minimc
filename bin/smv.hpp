@@ -82,9 +82,11 @@ inline void assign_vars_and_registers(SmvSpec& spec, const std::shared_ptr<Instr
 inline void generate_spec_paths(SmvSpec &spec, MiniMC::Model::Program_ptr& prg, const std::shared_ptr<MiniMC::Model::Function>& function) {
   for (auto& edge : function->getCFA().getEdges()) {
     std::string locName = std::to_string(edge->getFrom()->getID());
-    spec.add_location(function->getSymbol().getName(), locName)->add_instructions(edge->getInstructions(), prg);
+    std::string func_name = function->getSymbol().getName();
+    boost::replace_all(func_name, ".", "-");
+    spec.add_location(func_name, locName)->add_instructions(edge->getInstructions(), prg);
     for (const auto& instr : spec.get_last_location()->get_instructions()) {
-      assign_vars_and_registers(spec, instr, function->getSymbol().getName(), locName);
+      assign_vars_and_registers(spec, instr, func_name, locName);
     }
   }
 }
@@ -94,7 +96,6 @@ inline SmvSpec generate_smv_spec(MiniMC::Model::Program_ptr& prg) {
 
   for (auto& function : prg->getFunctions()) {
     std::string func_name = function->getSymbol().getName();
-    boost::replace_all(func_name, ".", "-");
     generate_spec_paths(spec, prg, function);
   }
 
