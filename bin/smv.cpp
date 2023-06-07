@@ -66,7 +66,7 @@ std::vector<ctl_spec> ctl_specs = {
   }},
   {.ctl_spec_name={"command_injection"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
       "EG ((locations = strcat-bb0) -> (EX (locations = system-bb0)))",
-      "EG ( (locations = main-bb5 & %1 = Unassigned) -> EX (locations = main-bb6 & %1 = Assigned) -> EX ( locations = strcat-bb0))"
+      "EG ( (locations = main-bb5 & %1 = Unassigned) -> EX (locations = main-bb6 & %1 = Assigned) -> EX (E[ locations != system-bb0 U locations = strcat-bb0]))",
   }},
   {.ctl_spec_name={"out_of_control"}, .replace_type=CTLReplaceType::None, .ctl_specs={
        "AG (locations = main-bb0) -> AF (locations = fork-bb0) -> AF (locations = fork-bb0)-> AF (locations = fork-bb0)",
@@ -78,7 +78,7 @@ std::vector<ctl_spec> ctl_specs = {
        "EF (locations = getchar-bb0 & main-reg19 = Assigned) -> E[locations != logKeyPress-bb0 U (locations = main-bb37 & (main-_gep__11 = PtrAdd | main-_gep__11 = Assigned))] -> E[(locations != fwrite-bb0 & logKeyPress-reg14 = Unassigned) U ((EF locations = strlen-bb0 & locations = fopen-bb0) & logKeyPress-reg4 = Assigned)]",
   }},
   {.ctl_spec_name={"elevated_privileges"}, .replace_type=CTLReplaceType::Register,.ctl_specs={
-       "EG (locations = main-bb0 & %1 = Unassigned) -> EF (locations = check_root_access-bb2 & %1 = Assigned & %1 = Unassigned) -> AF (locations = reeboot-bb2 & %1 = Assigned)",
+       "EG (locations = main-bb0 & %1 = Unassigned) -> EF (locations = check_root_access-bb2 & check_root_access_reg = Assigned & reeboot_reg = Unassigned) -> AF (locations = reeboot-bb2 & reeboot_reg = Assigned)",
        "E [(%1 = Unassigned) U (%1 = Assigned)]",
   }},
   {.ctl_spec_name={"big_combo"}, .replace_type=CTLReplaceType::Register,.ctl_specs={ // outofcontrol + passwordleak + elevatedprivileges
