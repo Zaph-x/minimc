@@ -51,7 +51,7 @@ std::vector<ctl_spec> ctl_specs = {
       "AG (locations = fork-bb0 -> AX(EF locations = fork-bb0))",
   }},
   {.ctl_spec_name{"double_free", "cwe_415", "cwe_825", "cwe_1341"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
-      "AF (locations = main-bb2 & %1 = Assigned) -> EF (locations = free-bb0 & %1 = NonDet) -> EX (E[%1 != Assigned U locations = free-bb0])",
+      "AG ((locations = free-bb0 & %1 = Assigned) -> EX(AF (locations = free-bb0 & %1 = NonDet)))",
   }},
   {.ctl_spec_name={"xor_files"}, .replace_type=CTLReplaceType::None, .ctl_specs={
       "EG ((locations = fopen-bb0 & main-reg22 != Xor & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & main-reg22 = Unassigned ))",
