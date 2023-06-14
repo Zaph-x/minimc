@@ -187,6 +187,7 @@ inline std::string write_register_transitions(SmvSpec& spec, const std::string& 
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {
       spec.get_register(name)->add_possible_state("NonDet");
+      std::cout << "Assigining NonDet to " << name << std::endl;
       output += "NonDet";
     } else if (i > 0) {
       spec.get_register(name)->add_possible_state("Modified");
@@ -253,6 +254,21 @@ inline std::string write_ctl_spec(const std::string& spec) {
   return "CTLSPEC\n" + spec + ";\n";
 }
 
+inline bool is_skippable(const std::string& regex, std::string line_to_search, std::vector<std::string> list) {
+  std::regex loc_re(regex);
+  std::smatch loc_match;
+  while(std::regex_search(line_to_search, loc_match, loc_re)) {
+    std::string value = loc_match[1];
+    std::cout << "Looking for: " << value << std::endl;
+    if (std::find(list.begin(), list.end(), value) == list.end()) {
+      return true;
+    }
+
+    line_to_search = loc_match.suffix().str();
+  }
+  return false;
+}
+
 inline void SmvSpec::write(const std::string file_name, const std::string& spec, std::vector<ctl_spec>& ctl_specs) {
   std::ofstream file(file_name);
   std::string output = "-- Output generated automatically by MiniMC\n";
@@ -269,9 +285,21 @@ inline void SmvSpec::write(const std::string file_name, const std::string& spec,
 
   std::string ctl_spec_output = "";
 
+  std::vector<std::string> location_names;
+  for (const auto& loc : reduced_locations) {
+    location_names.push_back(loc->get_full_name());
+  }
+
+  for (const auto& loc : location_names) {
+    std::cout << loc << std::endl;
+  }
+
+  bool is_replacable = false;
   for (const auto& ctlspec : ctl_specs) {
     for (const auto& name : ctlspec.ctl_spec_name) {
+      std::cout << spec<< " " << name << std::endl;
       if (name == spec) {
+        is_replacable = true;
         if (ctlspec.replace_type == CTLReplaceType::None) {
           for (const auto& spec : ctlspec.ctl_specs) {
             ctl_spec_output += write_ctl_spec(spec);
@@ -282,6 +310,9 @@ inline void SmvSpec::write(const std::string file_name, const std::string& spec,
             for (const auto& reg : registers) {
               std::string result = write_ctl_spec(ctlspec);
               boost::replace_all(result, "%1", reg->get_identifier());
+              if (is_skippable(reg->get_identifier() + " !?= (\\w+)", result, reg->get_values())) {
+                continue;
+              }
               ctl_spec_output += result;
             }
           }
@@ -290,7 +321,7 @@ inline void SmvSpec::write(const std::string file_name, const std::string& spec,
     }
   }
 
-  if (ctl_spec_output.empty()) {
+  if (ctl_spec_output.empty() && !is_replacable) {
     output += write_ctl_spec(spec);
   } else {
     output += ctl_spec_output;
