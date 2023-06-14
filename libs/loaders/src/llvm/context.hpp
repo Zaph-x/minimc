@@ -254,7 +254,7 @@ namespace MiniMC {
 	    .function = func_ptr,
 	    .params = params,
             // Simply exposing the called function by accessing the final member of the operandList
-            .argument = inst->getOperand(size-1)->getName().str()});
+            .func_name = inst->getOperand(size-1)->getName().str()});
 
        }
       }

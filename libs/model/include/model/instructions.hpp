@@ -414,7 +414,7 @@ ASSUMEASSERTS
       Value_ptr res;
       Value_ptr function;
       std::vector<Value_ptr> params;
-      std::string argument;
+      std::string func_name;
     };
     
     template <>
@@ -644,7 +644,7 @@ ASSUMEASSERTS
 	return {.res = replace(t.res),
                 .function = replace(t.function),
                 .params = params,
-                .argument = t.argument};
+                .func_name = t.func_name};
 
       }
 

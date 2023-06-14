@@ -782,7 +782,7 @@ class CallInstruction : public InstructionSpec {
         auto argrepr = arg->string_repr();
         params.push_back(arg->string_repr());
       }
-      argument = content.argument;
+      argument = content.func_name;
       if (argument.starts_with("llmv.")){
         boost::replace_all(argument, ".", "-");
       }
@@ -946,7 +946,7 @@ class LocationSpec : public Spec {
         has_return = true;
       } else if (instruction.getOpcode() == MiniMC::Model::InstructionCode::Call) {
         auto content = std::get<MiniMC::Model::CallContent>(instruction.getContent());
-        auto function_name = content.argument;
+        auto function_name = content.func_name;
         boost::replace_all(function_name, ".", "-");
         if (!this->next.empty())
             this->next.pop_back();
