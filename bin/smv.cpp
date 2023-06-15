@@ -54,8 +54,8 @@ std::vector<ctl_spec> ctl_specs = {
       "AG ((locations = free-bb0 & %1 = Assigned) -> EX(AF (locations = free-bb0 & %1 = NonDet)))",
   }},
   {.ctl_spec_name={"xor_files"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
-      "EG ((locations = fopen-bb0 & %1 != Xor & EX ( locations = fread-bb0)) -> AG ( locations = fwrite-bb0 & %1 = Unassigned ))",
-      "EG ((locations = fopen-bb0 & %1 != Xor ) -> EF ( EX (locations = fwrite-bb0 & %1 = Xor)))",
+      "EG ((locations = fopen-bb0 & %1 != Xor & EX ( locations = fgetc-bb0)) -> AG ( locations = fputc-bb0 & %1 = Unassigned ))",
+      "EG ((locations = fopen-bb0 & %1 != Xor ) -> EX(EF(locations = fputc-bb0 & %1 = Xor)))",
   }},
   {.ctl_spec_name={"command_injection"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
       "EG ((locations = strcat-bb0) -> (EX (locations = system-bb0)))",

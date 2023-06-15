@@ -187,7 +187,6 @@ inline std::string write_register_transitions(SmvSpec& spec, const std::string& 
     output += "    locations = " + locations[i]->get_full_name() + " : {";
     if (locations[i]->get_full_name().starts_with("free")) {
       spec.get_register(name)->add_possible_state("NonDet");
-      std::cout << "Assigining NonDet to " << name << std::endl;
       output += "NonDet";
     } else if (i > 0) {
       spec.get_register(name)->add_possible_state("Modified");
@@ -259,7 +258,6 @@ inline bool is_skippable(const std::string& regex, std::string line_to_search, s
   std::smatch loc_match;
   while(std::regex_search(line_to_search, loc_match, loc_re)) {
     std::string value = loc_match[1];
-    std::cout << "Looking for: " << value << std::endl;
     if (std::find(list.begin(), list.end(), value) == list.end()) {
       return true;
     }
@@ -290,14 +288,9 @@ inline void SmvSpec::write(const std::string file_name, const std::string& spec,
     location_names.push_back(loc->get_full_name());
   }
 
-  for (const auto& loc : location_names) {
-    std::cout << loc << std::endl;
-  }
-
   bool is_replacable = false;
   for (const auto& ctlspec : ctl_specs) {
     for (const auto& name : ctlspec.ctl_spec_name) {
-      std::cout << spec<< " " << name << std::endl;
       if (name == spec) {
         is_replacable = true;
         if (ctlspec.replace_type == CTLReplaceType::None) {
