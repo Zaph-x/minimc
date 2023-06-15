@@ -66,6 +66,9 @@ std::vector<ctl_spec> ctl_specs = {
   {.ctl_spec_name={"file_write"}, .replace_type=CTLReplaceType::Register, .ctl_specs={
        "AF(locations = fopen-bb0) -> EX A[(locations != fclose-bb0) U (locations = fwrite-bb0 & %1 = Modified)]",
   }},
+  {.ctl_spec_name={"setuid"}, .replace_type=CTLReplaceType::None, .ctl_specs={
+       "EG(locations = getuid-bb0 -> EX(EF (locations = setuid-bb0)))"
+  }},
 };
 
 
